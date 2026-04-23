@@ -5,6 +5,7 @@ import NotesPage from './pages/NotesPage'
 import SolarTermsPage from './pages/SolarTermsPage'
 import ClockPage from './pages/ClockPage'
 import PomodoroPage from './pages/PomodoroPage'
+import WallpaperPage from './pages/WallpaperPage'
 import LoginPage from './pages/LoginPage'
 import { useAuth } from './contexts/AuthContext'
 
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="solar-terms" element={<SolarTermsPage />} />
           <Route path="clock" element={<ClockPage />} />
           <Route path="pomodoro" element={<PomodoroPage />} />
+          <Route path="wallpaper" element={<WallpaperPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

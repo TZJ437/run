@@ -42,7 +42,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       startViewTransition?: (cb: () => void) => { ready: Promise<void> }
     }
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!doc.startViewTransition || prefersReducedMotion) {
+    // 移动端（窄屏）有大量 backdrop-filter 叠加，圆形过渡会卡，直接切换更流畅
+    const isNarrow = window.innerWidth < 640
+    if (!doc.startViewTransition || prefersReducedMotion || isNarrow) {
       setThemeState(next)
       return
     }
@@ -82,7 +84,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.documentElement.animate(
         { clipPath },
         {
-          duration: 650,
+          duration: 380,
           // 扩散用 ease-out（快速铺开后减速），收缩用 ease-in（先慢后加速消失）
           easing: isGoingDark
             ? 'cubic-bezier(0.16, 1, 0.3, 1)'

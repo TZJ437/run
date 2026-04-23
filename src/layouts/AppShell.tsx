@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut } from 'lucide-react'
+import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { useAuth } from '@/contexts/AuthContext'
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/solar-terms', label: '节气', icon: CalendarDays, match: (p: string) => p.startsWith('/solar-terms') },
   { to: '/clock', label: '时钟', icon: Clock, match: (p: string) => p.startsWith('/clock') },
   { to: '/pomodoro', label: '番茄钟', icon: Timer, match: (p: string) => p.startsWith('/pomodoro') },
+  { to: '/wallpaper', label: '墙纸', icon: ImageIcon, match: (p: string) => p.startsWith('/wallpaper') },
 ]
 
 export default function AppShell() {
@@ -56,7 +57,7 @@ export default function AppShell() {
       {/* 顶部栏 */}
       <header
         className="sticky top-0 z-30 px-4"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
       >
         <div className="liquid-glass mx-auto flex max-w-6xl items-center justify-between rounded-full px-5 py-2.5">
           <div className="flex items-center gap-2.5">
