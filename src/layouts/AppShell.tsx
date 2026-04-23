@@ -54,7 +54,10 @@ export default function AppShell() {
   return (
     <div className="flex h-full min-h-screen flex-col">
       {/* 顶部栏 */}
-      <header className="sticky top-0 z-30 px-4 pt-4">
+      <header
+        className="sticky top-0 z-30 px-4"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+      >
         <div className="liquid-glass mx-auto flex max-w-6xl items-center justify-between rounded-full px-5 py-2.5">
           <div className="flex items-center gap-2.5">
             <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-400 to-sky-400 shadow-md" />
