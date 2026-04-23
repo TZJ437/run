@@ -13,6 +13,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icon-512.svg', 'icon-maskable-512.svg'],
       manifest: {
+        id: 'io.maozi.liquid.lightglass',
         name: 'LightGlass · 轻玻璃',
         short_name: 'LightGlass',
         description: '一款极简液态玻璃风格的生活小工具：随手记、节气、时钟、番茄钟',
@@ -21,6 +22,8 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         lang: 'zh-CN',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
             src: 'icon-512.svg',
