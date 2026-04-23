@@ -1,4 +1,6 @@
 node_modules
+# PWABuilder 生成的原始图标包（仅保留 public/icons 下已用的）
+appstore-images/
 dist
 dist-ssr
 *.local
