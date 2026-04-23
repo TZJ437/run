@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LightGlass</string>
+    <string name="title_activity_main">LightGlass</string>
+    <string name="package_name">io.maozi.liquid.lightglass</string>
+    <string name="custom_url_scheme">io.maozi.liquid.lightglass</string>
+</resources>
