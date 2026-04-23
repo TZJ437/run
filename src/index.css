@@ -196,3 +196,14 @@ button { cursor: pointer; }
 /* 按钮点击反馈 */
 .btn-press { transition: transform 120ms ease, opacity 120ms ease; }
 .btn-press:active { transform: scale(0.96); opacity: 0.8; }
+
+/* 时钟秒针：60s 一圈线性，animationDelay 由 React 注入同步当前时刻 */
+@keyframes clock-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.clock-second-hand {
+  transform-origin: 100px 100px;
+  animation: clock-spin 60s linear infinite;
+  will-change: transform;
+}

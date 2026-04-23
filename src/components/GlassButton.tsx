@@ -28,7 +28,7 @@ export default function GlassButton({
   return (
     <button
       {...rest}
-      className={`btn-press inline-flex items-center justify-center gap-2 rounded-full font-medium ${sizeMap[size]} ${base} ${className}`}
+      className={`btn-press inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full font-medium ${sizeMap[size]} ${base} ${className}`}
     >
       {children}
     </button>

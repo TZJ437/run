@@ -3,15 +3,31 @@ import type { ReactNode } from 'react'
 
 type Theme = 'light' | 'dark'
 
+export interface ThemeColors {
+  accent: string // hex, eg "#a78bfa"
+  bgLight: string
+  bgDark: string
+}
+
+export const DEFAULT_COLORS: ThemeColors = {
+  accent: '#a78bfa',
+  bgLight: '#f5f5f7',
+  bgDark: '#0a0a0e',
+}
+
 interface ThemeContextValue {
   theme: Theme
   toggleTheme: (event?: React.MouseEvent) => void
   setTheme: (theme: Theme) => void
+  colors: ThemeColors
+  setColors: (c: Partial<ThemeColors>) => void
+  resetColors: () => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 const STORAGE_KEY = 'lightglass:theme'
+const COLORS_KEY = 'lightglass:colors'
 
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'light'
@@ -20,21 +36,60 @@ function getInitialTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
+function getInitialColors(): ThemeColors {
+  if (typeof window === 'undefined') return DEFAULT_COLORS
+  try {
+    const raw = localStorage.getItem(COLORS_KEY)
+    if (!raw) return DEFAULT_COLORS
+    const parsed = JSON.parse(raw) as Partial<ThemeColors>
+    return { ...DEFAULT_COLORS, ...parsed }
+  } catch {
+    return DEFAULT_COLORS
+  }
+}
+
+function hexToRgbTriplet(hex: string): string {
+  const clean = hex.replace('#', '').trim()
+  const full = clean.length === 3
+    ? clean.split('').map((c) => c + c).join('')
+    : clean.padEnd(6, '0').slice(0, 6)
+  const r = parseInt(full.slice(0, 2), 16) || 0
+  const g = parseInt(full.slice(2, 4), 16) || 0
+  const b = parseInt(full.slice(4, 6), 16) || 0
+  return `${r} ${g} ${b}`
+}
+
 function applyTheme(theme: Theme) {
   const root = document.documentElement
   if (theme === 'dark') root.classList.add('dark')
   else root.classList.remove('dark')
 }
 
+function applyColors(c: ThemeColors, theme: Theme) {
+  const root = document.documentElement
+  root.style.setProperty('--accent', hexToRgbTriplet(c.accent))
+  root.style.setProperty('--bg', hexToRgbTriplet(theme === 'dark' ? c.bgDark : c.bgLight))
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getInitialTheme)
+  const [colors, setColorsState] = useState<ThemeColors>(getInitialColors)
 
   useEffect(() => {
     applyTheme(theme)
+    applyColors(colors, theme)
     localStorage.setItem(STORAGE_KEY, theme)
-  }, [theme])
+  }, [theme, colors])
+
+  useEffect(() => {
+    localStorage.setItem(COLORS_KEY, JSON.stringify(colors))
+  }, [colors])
 
   const setTheme = useCallback((t: Theme) => setThemeState(t), [])
+  const setColors = useCallback((c: Partial<ThemeColors>) => {
+    setColorsState((prev) => ({ ...prev, ...c }))
+  }, [])
+  const resetColors = useCallback(() => setColorsState(DEFAULT_COLORS), [])
 
   const toggleTheme = useCallback((event?: React.MouseEvent) => {
     const next: Theme = theme === 'dark' ? 'light' : 'dark'
@@ -49,7 +104,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    // 以按钮几何中心为圆心（而不是精确点击位置），避免边缘点击偏心
     let x: number
     let y: number
     const target = event?.currentTarget as HTMLElement | undefined
@@ -70,13 +124,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       Math.max(y, window.innerHeight - y),
     )
 
-    const transition = doc.startViewTransition(() => {
-      setThemeState(next)
-    })
+    const transition = doc.startViewTransition(() => setThemeState(next))
     transition.ready.then(() => {
       const isGoingDark = next === 'dark'
-      // 去深色：new(深)在顶层 → 圆从 0 扩散到全屏，深色从按钮长出来
-      // 回浅色：old(深)在顶层 → 圆从全屏收缩到 0，深色向按钮消失
       const clipPath = isGoingDark
         ? [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`]
         : [`circle(${endRadius}px at ${x}px ${y}px)`, `circle(0px at ${x}px ${y}px)`]
@@ -85,7 +135,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         { clipPath },
         {
           duration: 380,
-          // 扩散用 ease-out（快速铺开后减速），收缩用 ease-in（先慢后加速消失）
           easing: isGoingDark
             ? 'cubic-bezier(0.16, 1, 0.3, 1)'
             : 'cubic-bezier(0.7, 0, 0.84, 0)',
@@ -98,7 +147,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme])
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider
+      value={{ theme, toggleTheme, setTheme, colors, setColors, resetColors }}
+    >
       {children}
     </ThemeContext.Provider>
   )

@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon } from 'lucide-react'
+import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon, Palette } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
+import SettingsPanel from '@/components/SettingsPanel'
 import { useAuth } from '@/contexts/AuthContext'
 
 const navItems = [
@@ -22,6 +23,7 @@ export default function AppShell() {
   const containerRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
+  const [showSettings, setShowSettings] = useState(false)
 
   const activeIndex = navItems.findIndex(it => it.match(location.pathname))
 
@@ -69,6 +71,14 @@ export default function AppShell() {
               {user?.email ?? user?.user_metadata?.name ?? '访客'}
             </span>
             <ThemeToggle />
+            <button
+              onClick={() => setShowSettings(true)}
+              className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
+              aria-label="配色设置"
+              title="配色设置"
+            >
+              <Palette size={16} />
+            </button>
             <button
               onClick={handleSignOut}
               className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
@@ -130,6 +140,8 @@ export default function AppShell() {
           })}
         </div>
       </nav>
+
+      <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   )
 }

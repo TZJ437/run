@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import GlassCard from '@/components/GlassCard'
 import { useTheme } from '@/contexts/ThemeContext'
 import { formatDateCN } from '@/lib/solarTerms'
@@ -14,22 +14,22 @@ export default function ClockPage() {
   const { theme } = useTheme()
   const [now, setNow] = useState(() => new Date())
 
+  // 每秒更新一次（原 60fps rAF 太耗能），秒针走 CSS 动画（见下方 style）
   useEffect(() => {
-    let raf = 0
-    const loop = () => {
-      setNow(new Date())
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(raf)
+    const t = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(t)
   }, [])
 
-  const ms = now.getMilliseconds()
-  const s = now.getSeconds() + ms / 1000
+  // 挂载时记录当前秒做 CSS 动画偏移，后续让动画自己跑
+  const initialSecondOffset = useMemo(() => {
+    const n = new Date()
+    return n.getSeconds() + n.getMilliseconds() / 1000
+  }, [])
+
+  const s = now.getSeconds()
   const m = now.getMinutes() + s / 60
   const h = (now.getHours() % 12) + m / 60
 
-  const secAngle = (s / 60) * 360
   const minAngle = (m / 60) * 360
   const hourAngle = (h / 12) * 360
 
@@ -91,12 +91,12 @@ export default function ClockPage() {
               )
             })}
 
-            {/* 时间数字 12 3 6 9 */}
+            {/* 时间数字 12 3 6 9（r=66，避开 r=78-88 的刻度区） */}
             {[
-              { n: 12, x: 100, y: 28 },
-              { n: 3, x: 172, y: 105 },
-              { n: 6, x: 100, y: 180 },
-              { n: 9, x: 28, y: 105 },
+              { n: 12, x: 100, y: 38 },
+              { n: 3, x: 164, y: 102 },
+              { n: 6, x: 100, y: 168 },
+              { n: 9, x: 36, y: 102 },
             ].map(({ n, x, y }) => (
               <text
                 key={n}
@@ -121,8 +121,11 @@ export default function ClockPage() {
             <g transform={`rotate(${minAngle} 100 100)`} filter="url(#hand-shadow)">
               <rect x="98.5" y="28" width="3" height="77" rx="1.5" fill={handColor} />
             </g>
-            {/* 秒针（橙红） */}
-            <g transform={`rotate(${secAngle} 100 100)`}>
+            {/* 秒针（橙红） · CSS 动画驱动，零 JS 开销 */}
+            <g
+              className="clock-second-hand"
+              style={{ animationDelay: `-${initialSecondOffset}s` }}
+            >
               <line x1="100" y1="115" x2="100" y2="22" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" />
               <circle cx="100" cy="100" r="5" fill="#ef4444" />
               <circle cx="100" cy="100" r="2" fill={theme === 'dark' ? '#0a0a0e' : '#ffffff'} />
