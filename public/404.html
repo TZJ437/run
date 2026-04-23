@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LightGlass</title>
+    <script>
+      // SPA fallback: GitHub Pages 将未知路由 404 重写为首页
+      var path = location.pathname + location.search + location.hash
+      sessionStorage.setItem('redirect', path)
+      location.replace('/')
+    </script>
+  </head>
+  <body></body>
+</html>
