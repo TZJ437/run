@@ -5,7 +5,7 @@ import GlassCard from '@/components/GlassCard'
 import { useWallpaper } from '@/contexts/WallpaperContext'
 
 export default function WallpaperPage() {
-  const { src, gyroState, uploading, uploadWallpaper, clearWallpaper, enableGyro, disableGyro } = useWallpaper()
+  const { src, tilt, gyroState, uploading, debug, uploadWallpaper, clearWallpaper, enableGyro, disableGyro } = useWallpaper()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const onPickFile = async (f: File | null) => {
@@ -114,6 +114,16 @@ export default function WallpaperPage() {
             {gyroState === 'unsupported' && '当前设备不支持'}
           </span>
         </div>
+        {gyroState === 'on' && (
+          <div className="mt-2 rounded-xl bg-black/15 p-3 font-mono text-[11px] leading-relaxed text-fg/70 dark:bg-white/10">
+            <div>事件源: <b>{debug.source}</b></div>
+            <div>累计事件: {debug.count}</div>
+            <div>β (前后倾): {debug.beta?.toFixed(2) ?? '—'}</div>
+            <div>γ (左右倾): {debug.gamma?.toFixed(2) ?? '—'}</div>
+            <div>tilt: x={tilt.x.toFixed(2)} y={tilt.y.toFixed(2)}</div>
+            {debug.count === 0 && <div className="mt-1 text-amber-600 dark:text-amber-400">⚠ 未收到任何传感器事件，尝试旋转手机</div>}
+          </div>
+        )}
       </GlassCard>
     </div>
   )

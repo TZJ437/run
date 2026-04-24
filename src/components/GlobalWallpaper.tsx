@@ -27,8 +27,9 @@ export default function GlobalWallpaper() {
         className="absolute inset-0 h-full w-full object-cover will-change-transform"
         style={{
           filter: 'blur(36px) saturate(1.4) brightness(0.92)',
-          transform: `scale(1.25) translate(${tilt.x * 0.6}px, ${tilt.y * 0.6}px)`,
-          transition: 'transform 180ms ease-out',
+          // 微动幅度加大到 ±40px，在 scale(1.3) 的墙纸上清晰可见
+          transform: `scale(1.3) translate(${tilt.x * 4}px, ${tilt.y * 4}px)`,
+          transition: 'transform 220ms ease-out',
         }}
       />
       {/* 顶部柔光 */}

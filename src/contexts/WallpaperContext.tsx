@@ -12,6 +12,7 @@ interface Ctx {
   tilt: { x: number; y: number }
   gyroState: 'idle' | 'on' | 'denied' | 'unsupported'
   uploading: boolean
+  debug: { source: string; beta: number | null; gamma: number | null; count: number }
   uploadWallpaper: (file: File) => Promise<void>
   clearWallpaper: () => void
   enableGyro: () => Promise<void>
@@ -65,6 +66,12 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
     }
   })
   const [uploading, setUploading] = useState(false)
+  const [debug, setDebug] = useState<{ source: string; beta: number | null; gamma: number | null; count: number }>({
+    source: 'none',
+    beta: null,
+    gamma: null,
+    count: 0,
+  })
 
   // 持久化 src
   useEffect(() => {
@@ -93,13 +100,20 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
     let lastUpdate = 0
     const THROTTLE_MS = 32 // ~30fps
 
-    const applyTilt = (beta: number | null | undefined, gamma: number | null | undefined) => {
+    let eventCount = 0
+    const applyTilt = (
+      beta: number | null | undefined,
+      gamma: number | null | undefined,
+      source: string,
+    ) => {
+      eventCount++
       const now = Date.now()
       if (now - lastUpdate < THROTTLE_MS) return
       lastUpdate = now
       const gx = Math.max(-10, Math.min(10, (gamma ?? 0) / 4.5))
       const gy = Math.max(-10, Math.min(10, ((beta ?? 0) - 40) / 5))
       setTilt({ x: gx, y: gy })
+      setDebug({ source, beta: beta ?? null, gamma: gamma ?? null, count: eventCount })
     }
 
     // --- Native: Capacitor Motion ---
@@ -110,16 +124,14 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
       ;(async () => {
         try {
           handleOri = await Motion.addListener('orientation', (ev) => {
-            applyTilt(ev.beta, ev.gamma)
+            applyTilt(ev.beta, ev.gamma, 'cap-orientation')
           })
-          // 兜底：若 orientation 事件不推送，则用加速度推算
           handleAcc = await Motion.addListener('accel', (ev) => {
             const acc = ev.accelerationIncludingGravity
             if (!acc) return
             const pseudoGamma = Math.atan2(acc.x ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
             const pseudoBeta = Math.atan2(acc.y ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
-            // 仅当 orientation 近 0.5 秒无更新时才使用
-            if (Date.now() - lastUpdate > 500) applyTilt(pseudoBeta, pseudoGamma)
+            if (Date.now() - lastUpdate > 500) applyTilt(pseudoBeta, pseudoGamma, 'cap-accel')
           })
         } catch (err) {
           console.warn('[wallpaper] Motion listener failed', err)
@@ -139,14 +151,14 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
     // --- Web: DOM events ---
     const onOrientation = (e: DeviceOrientationEvent) => {
       if (e.beta == null && e.gamma == null) return
-      applyTilt(e.beta, e.gamma)
+      applyTilt(e.beta, e.gamma, e.type === 'deviceorientationabsolute' ? 'web-abs' : 'web-ori')
     }
     const onMotion = (e: DeviceMotionEvent) => {
       const acc = e.accelerationIncludingGravity
       if (!acc) return
       const pseudoGamma = Math.atan2(acc.x ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
       const pseudoBeta = Math.atan2(acc.y ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
-      if (Date.now() - lastUpdate > 500) applyTilt(pseudoBeta, pseudoGamma)
+      if (Date.now() - lastUpdate > 500) applyTilt(pseudoBeta, pseudoGamma, 'web-motion')
     }
     window.addEventListener('deviceorientation', onOrientation)
     window.addEventListener('deviceorientationabsolute', onOrientation as EventListener)
@@ -204,7 +216,7 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
 
   return (
     <WallpaperContext.Provider
-      value={{ src, tilt, gyroState, uploading, uploadWallpaper, clearWallpaper, enableGyro, disableGyro }}
+      value={{ src, tilt, gyroState, uploading, debug, uploadWallpaper, clearWallpaper, enableGyro, disableGyro }}
     >
       {children}
     </WallpaperContext.Provider>
