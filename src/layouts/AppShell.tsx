@@ -14,6 +14,7 @@ import ThemeToggle from '@/components/ThemeToggle'
 import Avatar from '@/components/Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProfile } from '@/contexts/ProfileContext'
+import { useLiquidConfig } from '@/contexts/LiquidConfigContext'
 
 const navItems = [
   { to: '/', label: '首页', icon: Home, end: true, match: (p: string) => p === '/' },
@@ -33,6 +34,7 @@ interface LiquidGlassInstance {
 export default function AppShell() {
   const { user, signOut } = useAuth()
   const { displayName } = useProfile()
+  const { config: liquidConfig, version: liquidVersion } = useLiquidConfig()
   const nav = useNavigate()
   const location = useLocation()
 
@@ -68,39 +70,38 @@ export default function AppShell() {
     return () => window.removeEventListener('resize', onResize)
   }, [activeIndex])
 
-  // 初始化 ybouane/liquidglass，应用到底部导航
+  // 初始化 ybouane/liquidglass，配置变化 → debounced 重建
   useEffect(() => {
-    let mounted = true
-    const init = async () => {
+    let cancelled = false
+    let instance: LiquidGlassInstance | null = null
+    let raf = 0
+    let scrollCleanup: (() => void) | null = null
+
+    // 150ms 去抖：避免滑块拖动时每帧重建
+    const debounce = window.setTimeout(async () => {
       try {
         const root = rootRef.current
         const glass = navGlassRef.current
         if (!root || !glass) return
+        // 先销毁旧实例
+        if (liquidRef.current) {
+          liquidRef.current.destroy()
+          liquidRef.current = null
+        }
         const mod = await import('@ybouane/liquidglass')
-        if (!mounted) return
-        const instance = (await mod.LiquidGlass.init({
+        if (cancelled) return
+        instance = (await mod.LiquidGlass.init({
           root,
           glassElements: [glass],
-          defaults: {
-            blurAmount: 0.15,
-            refraction: 0.75,
-            chromAberration: 0.05,
-            edgeHighlight: 0.1,
-            fresnel: 1,
-            cornerRadius: 28,
-            zRadius: 18,
-            shadowOpacity: 0.25,
-            shadowSpread: 8,
-          },
+          defaults: { ...liquidConfig },
         })) as unknown as LiquidGlassInstance
-        if (!mounted) {
+        if (cancelled) {
           instance.destroy()
           return
         }
         liquidRef.current = instance
 
-        // 窗口滚动时重画（节流到 rAF）
-        let raf = 0
+        // 滚动节流重画
         const onScroll = () => {
           if (raf) return
           raf = requestAnimationFrame(() => {
@@ -109,24 +110,25 @@ export default function AppShell() {
           })
         }
         window.addEventListener('scroll', onScroll, { passive: true })
-        // 通过 ref 暴露清理
-        ;(liquidRef as { _cleanup?: () => void })._cleanup = () => {
+        scrollCleanup = () => {
           window.removeEventListener('scroll', onScroll)
           if (raf) cancelAnimationFrame(raf)
         }
       } catch (e) {
         console.warn('LiquidGlass init failed, falling back to CSS glass', e)
       }
-    }
-    init()
+    }, 150)
+
     return () => {
-      mounted = false
-      const clean = (liquidRef as { _cleanup?: () => void })._cleanup
-      if (clean) clean()
-      liquidRef.current?.destroy()
-      liquidRef.current = null
+      cancelled = true
+      window.clearTimeout(debounce)
+      scrollCleanup?.()
+      if (instance) {
+        instance.destroy()
+        if (liquidRef.current === instance) liquidRef.current = null
+      }
     }
-  }, [])
+  }, [liquidVersion, liquidConfig])
 
   // 路由变化时强制重画一次
   useEffect(() => {
@@ -191,10 +193,10 @@ export default function AppShell() {
       {/* 底部玻璃导航：glass 元素是 root 的直接子元素 */}
       <div
         ref={navGlassRef}
-        className="liquid-glass fixed left-1/2 z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1.5 shadow-2xl"
+        className="liquid-glass fixed left-1/2 z-30 w-fit -translate-x-1/2 rounded-full p-1.5"
         style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
       >
-        <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5">
+        <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5 whitespace-nowrap">
           <span
             aria-hidden
             className={`absolute top-0 bottom-0 rounded-full bg-accent/90 shadow-md shadow-accent/30 ${

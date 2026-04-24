@@ -1,12 +1,37 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
-import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock } from 'lucide-react'
+import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock, Droplets } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import Avatar from '@/components/Avatar'
 import { DEFAULT_COLORS, GLASS_VARIANTS, useTheme } from '@/contexts/ThemeContext'
 import { useProfile } from '@/contexts/ProfileContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { useLiquidConfig, type LiquidConfig } from '@/contexts/LiquidConfigContext'
+
+// 液态玻璃参数表：与 ybouane 官方 Playground 一致
+const LIQUID_SLIDERS: Array<{
+  key: keyof LiquidConfig
+  label: string
+  min: number
+  max: number
+  step: number
+}> = [
+  { key: 'blurAmount', label: 'Blur Amount', min: 0, max: 1, step: 0.01 },
+  { key: 'refraction', label: 'Refraction', min: 0, max: 2, step: 0.01 },
+  { key: 'chromAberration', label: 'Chrom. Aberration', min: 0, max: 0.2, step: 0.005 },
+  { key: 'edgeHighlight', label: 'Edge Highlight', min: 0, max: 0.3, step: 0.005 },
+  { key: 'specular', label: 'Specular', min: 0, max: 1, step: 0.01 },
+  { key: 'fresnel', label: 'Fresnel', min: 0, max: 2, step: 0.01 },
+  { key: 'distortion', label: 'Distortion', min: 0, max: 1, step: 0.01 },
+  { key: 'cornerRadius', label: 'Corner Radius', min: 0, max: 100, step: 1 },
+  { key: 'zRadius', label: 'Z-Radius', min: 0, max: 100, step: 1 },
+  { key: 'opacity', label: 'Opacity', min: 0, max: 1, step: 0.01 },
+  { key: 'saturation', label: 'Saturation', min: -1, max: 1, step: 0.01 },
+  { key: 'brightness', label: 'Brightness', min: -0.5, max: 0.5, step: 0.01 },
+  { key: 'shadowOpacity', label: 'Shadow Opacity', min: 0, max: 1, step: 0.01 },
+  { key: 'shadowSpread', label: 'Shadow Spread', min: 0, max: 40, step: 1 },
+]
 
 const ACCENT_PRESETS = ['#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#fb7185', '#f97316', '#64748b']
 const BG_LIGHT_PRESETS = ['#f5f5f7', '#fff7ed', '#f0f9ff', '#f0fdf4', '#fdf4ff']
@@ -17,6 +42,7 @@ export default function SettingsPage() {
   const { theme, toggleTheme, colors, setColors, resetColors, glassVariant, setGlassVariant } = useTheme()
   const { profile, setProfile, uploadAvatar, clearAvatar } = useProfile()
   const { user, signOut } = useAuth()
+  const { config: liquid, setConfig: setLiquid, reset: resetLiquid } = useLiquidConfig()
   const nav = useNavigate()
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
@@ -262,6 +288,74 @@ export default function SettingsPage() {
             >
               <RotateCcw size={14} /> 恢复默认配色
             </GlassButton>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* 液态玻璃实时调节 —— 与 ybouane 官方 Playground 对齐 */}
+      <GlassCard rounded="3xl" className="space-y-4 p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Droplets size={16} className="text-fg/60" />
+            <h2 className="text-sm font-semibold">液态玻璃调节台</h2>
+          </div>
+          <GlassButton size="sm" variant="ghost" onClick={resetLiquid}>
+            <RotateCcw size={12} /> 重置
+          </GlassButton>
+        </div>
+        <p className="text-xs text-fg/60">
+          拖动滑块即可看到底部导航栏实时变化（150ms 去抖重建 WebGL 实例）
+        </p>
+
+        <div className="space-y-3">
+          {LIQUID_SLIDERS.map(({ key, label, min, max, step }) => {
+            const val = liquid[key] as number
+            return (
+              <div key={key} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-fg/70">{label}</span>
+                  <span className="font-mono tabular-nums text-fg/90">
+                    {val.toFixed(step < 1 ? (step >= 0.01 ? 2 : 3) : 0)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={min}
+                  max={max}
+                  step={step}
+                  value={val}
+                  onChange={(e) => setLiquid({ [key]: Number(e.target.value) } as Partial<LiquidConfig>)}
+                  className="slider-liquid w-full"
+                  aria-label={label}
+                />
+              </div>
+            )
+          })}
+
+          {/* Bevel Mode 单独：0/1 切换 */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-fg/70">Bevel Mode</span>
+              <span className="font-mono text-fg/90">{liquid.bevelMode}</span>
+            </div>
+            <div className="flex gap-2">
+              <GlassButton
+                size="sm"
+                variant={liquid.bevelMode === 0 ? 'primary' : 'ghost'}
+                onClick={() => setLiquid({ bevelMode: 0 })}
+                className="flex-1"
+              >
+                0 · 双凸药丸
+              </GlassButton>
+              <GlassButton
+                size="sm"
+                variant={liquid.bevelMode === 1 ? 'primary' : 'ghost'}
+                onClick={() => setLiquid({ bevelMode: 1 })}
+                className="flex-1"
+              >
+                1 · 圆顶透镜
+              </GlassButton>
+            </div>
           </div>
         </div>
       </GlassCard>
