@@ -292,7 +292,7 @@ export default function SettingsPage() {
           <h2 className="text-sm font-semibold">AI 对话（DeepSeek）</h2>
         </div>
         <p className="text-xs text-fg/60">
-          自定义你自己的 API key，会保存在本机。留空则使用内置默认 key（随应用分发，可能被共享消耗额度，不推荐长期使用）。
+          填入你自己的 API key 才能使用 AI 对话，key 仅保存在本机浏览器里，不会上传服务器。留空则 AI 对话不可用。
         </p>
         <label className="text-xs text-fg/60">
           <span className="inline-flex items-center gap-1">
@@ -338,11 +338,11 @@ export default function SettingsPage() {
             variant="ghost"
             onClick={() => {
               setApiKey('')
-              setApiKeyDraft(getApiKey())
+              setApiKeyDraft('')
               setKeySaved(false)
             }}
           >
-            恢复默认
+            清空
           </GlassButton>
           {keySaved && <span className="self-center text-xs text-emerald-500">已保存 ✓</span>}
         </div>

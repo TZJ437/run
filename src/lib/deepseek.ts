@@ -1,20 +1,28 @@
 /**
  * DeepSeek chat API
- * 注意：API key 直接嵌入前端会随 APK/PWA 分发，任何人都能提取。
- * 当前这样做是因为用户明确提供了一个用于个人测试的 key。
- * 生产环境请改为后端代理或动态获取。
+ * 无内置默认 key：必须由用户在"设置 → AI 对话"里填入自己的 key。
  */
 
-const DEFAULT_KEY = 'sk-d5abf451f79c4297bd59d44bec996641'
 const KEY_STORAGE = 'lightglass:deepseek-key'
 const ENDPOINT = 'https://api.deepseek.com/chat/completions'
 
+export class MissingApiKeyError extends Error {
+  constructor() {
+    super('请先在 设置 → AI 对话 中填入你自己的 DeepSeek API Key')
+    this.name = 'MissingApiKeyError'
+  }
+}
+
 export function getApiKey(): string {
   try {
-    return localStorage.getItem(KEY_STORAGE) || DEFAULT_KEY
+    return localStorage.getItem(KEY_STORAGE) || ''
   } catch {
-    return DEFAULT_KEY
+    return ''
   }
+}
+
+export function hasApiKey(): boolean {
+  return !!getApiKey().trim()
 }
 
 export function setApiKey(key: string) {
@@ -39,6 +47,7 @@ export interface ChatOptions {
 
 export async function chatCompletion(messages: ChatMessage[], opts: ChatOptions = {}): Promise<string> {
   const key = getApiKey()
+  if (!key.trim()) throw new MissingApiKeyError()
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: {

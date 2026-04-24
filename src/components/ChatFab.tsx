@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { MessageCircle, X, Send, Loader2, Trash2 } from 'lucide-react'
-import { chatCompletion, SYSTEM_PROMPT } from '@/lib/deepseek'
+import { useNavigate } from 'react-router-dom'
+import { MessageCircle, X, Send, Loader2, Trash2, Settings as SettingsIcon, Key } from 'lucide-react'
+import { chatCompletion, hasApiKey, MissingApiKeyError, SYSTEM_PROMPT } from '@/lib/deepseek'
 import type { ChatMessage } from '@/lib/deepseek'
 
 /**
@@ -16,15 +17,19 @@ export default function ChatFab() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [keyReady, setKeyReady] = useState(() => hasApiKey())
   const btnRef = useRef<HTMLButtonElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const [origin, setOrigin] = useState<string>('bottom right')
+  const nav = useNavigate()
 
   // 开/关动画生命周期：关闭时延迟卸载面板
   useEffect(() => {
     if (open) {
+      // 每次打开都重新读取 key 状态（用户可能刚在设置里填完返回）
+      setKeyReady(hasApiKey())
       // 读取按钮此刻的视口位置作为放大原点
       const r = btnRef.current?.getBoundingClientRect()
       if (r) setOrigin(`${r.left + r.width / 2}px ${r.top + r.height / 2}px`)
@@ -76,7 +81,9 @@ export default function ChatFab() {
       const reply = await chatCompletion(history, { signal: ac.signal })
       setMessages((m) => [...m, { role: 'assistant', content: reply }])
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
+      if (err instanceof MissingApiKeyError) {
+        setKeyReady(false)
+      } else if ((err as Error).name !== 'AbortError') {
         setMessages((m) => [
           ...m,
           { role: 'assistant', content: `⚠️ 出错了：${(err as Error).message}` },
@@ -140,7 +147,32 @@ export default function ChatFab() {
 
         {/* messages */}
         <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-          {messages.length === 0 ? (
+          {!keyReady ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-fg/70">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
+                <Key size={22} />
+              </div>
+              <p className="text-sm font-medium">需要先设置 API Key</p>
+              <p className="max-w-xs text-xs text-fg/60">
+                使用 AI 对话前，请先在"设置 → AI 对话"中填入你自己的 DeepSeek API Key。
+                <br />
+                key 只会保存在你本机浏览器里。
+              </p>
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  nav('/settings')
+                }}
+                className="liquid-glass-subtle btn-press mt-1 flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium"
+              >
+                <SettingsIcon size={12} />
+                去设置填 Key
+              </button>
+              <p className="text-[11px] text-fg/40">
+                获取：platform.deepseek.com → API keys
+              </p>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-fg/60">
               <MessageCircle size={36} className="opacity-40" />
               <p className="text-sm">你好，有什么我可以帮你？</p>
@@ -188,12 +220,13 @@ export default function ChatFab() {
                 }
               }}
               rows={1}
-              placeholder="发送消息… (Enter 发送，Shift+Enter 换行)"
-              className="liquid-glass-subtle max-h-32 min-h-[2.5rem] flex-1 resize-none rounded-2xl px-3 py-2 text-sm outline-none"
+              disabled={!keyReady}
+              placeholder={keyReady ? '发送消息… (Enter 发送，Shift+Enter 换行)' : '请先设置 API Key'}
+              className="liquid-glass-subtle max-h-32 min-h-[2.5rem] flex-1 resize-none rounded-2xl px-3 py-2 text-sm outline-none disabled:cursor-not-allowed disabled:opacity-60"
             />
             <button
               onClick={send}
-              disabled={!input.trim() || loading}
+              disabled={!keyReady || !input.trim() || loading}
               aria-label="发送"
               className="btn-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-md disabled:opacity-40"
             >
