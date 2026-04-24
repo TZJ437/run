@@ -16,7 +16,6 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/local-notifications": "^8.0.2",
     "@supabase/supabase-js": "^2.45.4",
-    "@ybouane/liquidglass": "^1.0.3",
     "lucide-react": "^0.453.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

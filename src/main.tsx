@@ -6,7 +6,6 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProfileProvider } from './contexts/ProfileContext'
 import { PomodoroProvider } from './contexts/PomodoroContext'
-import { LiquidConfigProvider } from './contexts/LiquidConfigContext'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -15,11 +14,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <AuthProvider>
           <ProfileProvider>
-            <LiquidConfigProvider>
-              <PomodoroProvider>
-                <App />
-              </PomodoroProvider>
-            </LiquidConfigProvider>
+            <PomodoroProvider>
+              <App />
+            </PomodoroProvider>
           </ProfileProvider>
         </AuthProvider>
       </ThemeProvider>
