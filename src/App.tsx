@@ -11,6 +11,7 @@ const SolarTermsPage = lazy(() => import('./pages/SolarTermsPage'))
 const ClockPage = lazy(() => import('./pages/ClockPage'))
 const PomodoroPage = lazy(() => import('./pages/PomodoroPage'))
 const WallpaperPage = lazy(() => import('./pages/WallpaperPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 
 function Fallback() {
   return <div className="grid h-full place-items-center text-fg/60">加载中…</div>
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="clock" element={<ClockPage />} />
             <Route path="pomodoro" element={<PomodoroPage />} />
             <Route path="wallpaper" element={<WallpaperPage />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

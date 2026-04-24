@@ -4,6 +4,8 @@ import { HashRouter } from 'react-router-dom'
 import App from './App'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { ProfileProvider } from './contexts/ProfileContext'
+import { PomodoroProvider } from './contexts/PomodoroContext'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -11,7 +13,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <HashRouter>
       <ThemeProvider>
         <AuthProvider>
-          <App />
+          <ProfileProvider>
+            <PomodoroProvider>
+              <App />
+            </PomodoroProvider>
+          </ProfileProvider>
         </AuthProvider>
       </ThemeProvider>
     </HashRouter>

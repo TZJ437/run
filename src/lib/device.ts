@@ -1,5 +1,4 @@
 // 设备能力封装：优先用 Capacitor 原生插件，回退到 Web API
-// 动态 import 保证 Web 构建下也能正常打包（插件 JS 侧会自动判定平台）
 
 function isNative(): boolean {
   const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
@@ -42,17 +41,29 @@ export async function requestNotifyPermission(): Promise<boolean> {
   return false
 }
 
-export async function notify(title: string, body: string): Promise<void> {
+interface ScheduleOpts {
+  id: number
+  title: string
+  body: string
+  at?: Date // 未提供表示立即
+  ongoing?: boolean // 常驻状态栏
+}
+
+const webTimers = new Map<number, number>()
+
+export async function scheduleNotification(opts: ScheduleOpts): Promise<void> {
   try {
     if (isNative()) {
       const { LocalNotifications } = await import('@capacitor/local-notifications')
       await LocalNotifications.schedule({
         notifications: [
           {
-            id: Date.now() & 0x7fffffff,
-            title,
-            body,
-            schedule: { at: new Date(Date.now() + 100) },
+            id: opts.id,
+            title: opts.title,
+            body: opts.body,
+            ongoing: opts.ongoing,
+            autoCancel: !opts.ongoing,
+            schedule: opts.at ? { at: opts.at, allowWhileIdle: true } : undefined,
             smallIcon: 'ic_stat_icon_config_sample',
           },
         ],
@@ -62,11 +73,43 @@ export async function notify(title: string, body: string): Promise<void> {
   } catch {
     /* ignore */
   }
+  // Web 回退：setTimeout + Notification API
   try {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, { body })
+    const delay = opts.at ? Math.max(0, opts.at.getTime() - Date.now()) : 0
+    const existing = webTimers.get(opts.id)
+    if (existing) window.clearTimeout(existing)
+    const t = window.setTimeout(() => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(opts.title, { body: opts.body })
+      }
+      webTimers.delete(opts.id)
+    }, delay)
+    webTimers.set(opts.id, t)
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function cancelNotifications(ids: number[]): Promise<void> {
+  try {
+    if (isNative()) {
+      const { LocalNotifications } = await import('@capacitor/local-notifications')
+      await LocalNotifications.cancel({ notifications: ids.map((id) => ({ id })) })
+      return
     }
   } catch {
     /* ignore */
   }
+  ids.forEach((id) => {
+    const t = webTimers.get(id)
+    if (t) {
+      window.clearTimeout(t)
+      webTimers.delete(id)
+    }
+  })
+}
+
+// 兼容旧用法（立即通知）
+export async function notify(title: string, body: string): Promise<void> {
+  return scheduleNotification({ id: Date.now() & 0x7fffffff, title, body })
 }

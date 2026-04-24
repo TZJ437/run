@@ -9,6 +9,15 @@ export interface ThemeColors {
   bgDark: string
 }
 
+export type GlassVariant = 'default' | 'crystal' | 'frosted' | 'aurora'
+
+export const GLASS_VARIANTS: { id: GlassVariant; label: string; desc: string }[] = [
+  { id: 'default', label: '标准', desc: '均衡的液态玻璃，默认风格' },
+  { id: 'crystal', label: '晶莹', desc: '更高透明度、强边缘光、参考 liquidglass' },
+  { id: 'frosted', label: '雾面', desc: '厚模糊、低透，安静内敛' },
+  { id: 'aurora', label: '极光', desc: '多彩光晕折射，充满活力' },
+]
+
 export const DEFAULT_COLORS: ThemeColors = {
   accent: '#a78bfa',
   bgLight: '#f5f5f7',
@@ -22,12 +31,15 @@ interface ThemeContextValue {
   colors: ThemeColors
   setColors: (c: Partial<ThemeColors>) => void
   resetColors: () => void
+  glassVariant: GlassVariant
+  setGlassVariant: (v: GlassVariant) => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 const STORAGE_KEY = 'lightglass:theme'
 const COLORS_KEY = 'lightglass:colors'
+const VARIANT_KEY = 'lightglass:glassVariant'
 
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'light'
@@ -71,9 +83,23 @@ function applyColors(c: ThemeColors, theme: Theme) {
   root.style.setProperty('--bg', hexToRgbTriplet(theme === 'dark' ? c.bgDark : c.bgLight))
 }
 
+function getInitialVariant(): GlassVariant {
+  if (typeof window === 'undefined') return 'default'
+  const v = localStorage.getItem(VARIANT_KEY) as GlassVariant | null
+  return v && ['default', 'crystal', 'frosted', 'aurora'].includes(v) ? v : 'default'
+}
+
+function applyVariant(v: GlassVariant) {
+  const root = document.documentElement
+  // 清除旧变体类
+  root.classList.remove('glass-default', 'glass-crystal', 'glass-frosted', 'glass-aurora')
+  root.classList.add(`glass-${v}`)
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getInitialTheme)
   const [colors, setColorsState] = useState<ThemeColors>(getInitialColors)
+  const [glassVariant, setGlassVariantState] = useState<GlassVariant>(getInitialVariant)
 
   useEffect(() => {
     applyTheme(theme)
@@ -84,6 +110,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(COLORS_KEY, JSON.stringify(colors))
   }, [colors])
+
+  useEffect(() => {
+    applyVariant(glassVariant)
+    localStorage.setItem(VARIANT_KEY, glassVariant)
+  }, [glassVariant])
+
+  const setGlassVariant = useCallback((v: GlassVariant) => setGlassVariantState(v), [])
 
   const setTheme = useCallback((t: Theme) => setThemeState(t), [])
   const setColors = useCallback((c: Partial<ThemeColors>) => {
@@ -148,7 +181,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <ThemeContext.Provider
-      value={{ theme, toggleTheme, setTheme, colors, setColors, resetColors }}
+      value={{ theme, toggleTheme, setTheme, colors, setColors, resetColors, glassVariant, setGlassVariant }}
     >
       {children}
     </ThemeContext.Provider>

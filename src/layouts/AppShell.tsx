@@ -1,9 +1,9 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon, Palette } from 'lucide-react'
+import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
-import SettingsPanel from '@/components/SettingsPanel'
 import { useAuth } from '@/contexts/AuthContext'
+import { useProfile } from '@/contexts/ProfileContext'
 
 const navItems = [
   { to: '/', label: '首页', icon: Home, end: true, match: (p: string) => p === '/' },
@@ -15,7 +15,8 @@ const navItems = [
 ]
 
 export default function AppShell() {
-  const { user, signOut } = useAuth()
+  const { signOut } = useAuth()
+  const { profile, displayName } = useProfile()
   const nav = useNavigate()
   const location = useLocation()
 
@@ -23,7 +24,6 @@ export default function AppShell() {
   const containerRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
-  const [showSettings, setShowSettings] = useState(false)
 
   const activeIndex = navItems.findIndex(it => it.match(location.pathname))
 
@@ -61,24 +61,22 @@ export default function AppShell() {
         className="sticky top-0 z-30 px-4"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
       >
-        <div className="liquid-glass mx-auto flex max-w-6xl items-center justify-between rounded-full px-5 py-2.5">
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 rounded-full bg-gradient-to-br from-violet-400 to-sky-400 shadow-md" />
-            <span className="text-sm font-semibold tracking-wide">LightGlass</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden text-xs text-fg/60 sm:inline">
-              {user?.email ?? user?.user_metadata?.name ?? '访客'}
-            </span>
-            <ThemeToggle />
-            <button
-              onClick={() => setShowSettings(true)}
-              className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
-              aria-label="配色设置"
-              title="配色设置"
+        <div className="liquid-glass mx-auto flex max-w-6xl items-center justify-between rounded-full px-3 py-2">
+          <button
+            onClick={() => nav('/settings')}
+            className="btn-press flex min-w-0 items-center gap-2.5 rounded-full pr-2"
+            aria-label="打开设置"
+          >
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg shadow-md"
+              style={{ background: profile.avatarColor }}
             >
-              <Palette size={16} />
-            </button>
+              {profile.avatarEmoji}
+            </div>
+            <span className="truncate text-sm font-semibold tracking-wide">{displayName}</span>
+          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <ThemeToggle />
             <button
               onClick={handleSignOut}
               className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
@@ -140,8 +138,6 @@ export default function AppShell() {
           })}
         </div>
       </nav>
-
-      <SettingsPanel open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   )
 }
