@@ -130,7 +130,7 @@ export default function AppShell() {
       {!hideBottomNav && createPortal(
         <nav
           aria-label="主导航"
-          className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
+          className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center gap-2 pointer-events-none"
           style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
         >
           <div className="liquid-glass pointer-events-auto flex items-center gap-0.5 rounded-full p-1.5 shadow-2xl">
@@ -171,12 +171,11 @@ export default function AppShell() {
               })}
             </div>
           </div>
+          {/* AI 对话 FAB：与导航胶囊并排（灵动岛式） */}
+          <ChatFab />
         </nav>,
         document.body,
       )}
-
-      {/* AI 对话悬浮按钮（隐藏于设置页，避免覆盖返回按钮） */}
-      {!hideBottomNav && <ChatFab />}
     </>
   )
 }

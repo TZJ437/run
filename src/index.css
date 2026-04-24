@@ -81,17 +81,10 @@ body {
   transform: scale(1.25);
 }
 
-/* ========== ChatFab 悬浮按钮 & 聊天面板 ========== */
-/* FAB 使用内联 left/top 由 JS 控制位置。拖动时 transition 由 JS 置为 none */
-.chat-fab-draggable {
-  /* 防止拖动时浏览器把按钮当成滚动区 */
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: none;
-  cursor: grab;
-}
-.chat-fab-draggable:active {
-  cursor: grabbing;
+/* ========== ChatFab 灵动岛式按钮 & 聊天面板 ========== */
+/* FAB 与底部导航并排，无拖拽；透明度切换由 className 控制 */
+.chat-pill {
+  transition: opacity 180ms ease, transform 180ms ease;
 }
 
 /* 遮罩渐入 */
