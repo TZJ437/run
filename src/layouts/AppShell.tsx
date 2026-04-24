@@ -8,6 +8,7 @@ import {
   LogOut,
   Image as ImageIcon,
   Settings as SettingsIcon,
+  Menu as MenuIcon,
 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -31,23 +32,31 @@ export default function AppShell() {
   const location = useLocation()
 
   const indicatorBoxRef = useRef<HTMLDivElement>(null)
+  const dockRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
-  // 滚动时隐藏底部导航：向下滚隐藏，向上滚显示
-  const [navHidden, setNavHidden] = useState(false)
+
+  // 长页面自动折叠成 FAB：当页面可滚动时默认折叠，点击展开
+  const [isLongPage, setIsLongPage] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   const activeIndex = navItems.findIndex((it) => it.match(location.pathname))
+  const safeActiveIndex = activeIndex >= 0 ? activeIndex : 0
+  const ActiveIcon = navItems[safeActiveIndex].icon
+  const activeLabel = navItems[safeActiveIndex].label
   // 设置页视为"子页面"：隐藏底部导航，改为返回按钮由页面自己渲染
   const isSettings = location.pathname === '/settings'
+  const collapsed = isLongPage && !expanded
 
   useLayoutEffect(() => {
+    if (collapsed) return
     const el = itemRefs.current[activeIndex]
     const wrap = indicatorBoxRef.current
     if (!el || !wrap) return
     const er = el.getBoundingClientRect()
     const wr = wrap.getBoundingClientRect()
     setIndicator({ left: er.left - wr.left, width: er.width, ready: true })
-  }, [activeIndex, location.pathname])
+  }, [activeIndex, location.pathname, collapsed])
 
   useEffect(() => {
     const onResize = () => {
@@ -62,32 +71,46 @@ export default function AppShell() {
     return () => window.removeEventListener('resize', onResize)
   }, [activeIndex])
 
-  // 监听窗口滚动：向下滚隐藏、向上滚显示、顶部自动显示
+  // 检测当前页面是否"长"（内容超出视口即判定）
   useEffect(() => {
-    let lastY = window.scrollY
-    let raf = 0
-    const onScroll = () => {
-      if (raf) return
-      raf = requestAnimationFrame(() => {
-        const y = window.scrollY
-        if (y < 80) setNavHidden(false)
-        else if (y > lastY + 6) setNavHidden(true)
-        else if (y < lastY - 6) setNavHidden(false)
-        lastY = y
-        raf = 0
-      })
+    if (isSettings) {
+      setIsLongPage(false)
+      return
+    }
+    const check = () => {
+      const doc = document.documentElement
+      const long = doc.scrollHeight > window.innerHeight + 24
+      setIsLongPage(long)
+    }
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(document.body)
+    window.addEventListener('resize', check)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', check)
+    }
+  }, [isSettings, location.pathname])
+
+  // 路由切换后自动收起
+  useEffect(() => {
+    setExpanded(false)
+  }, [location.pathname])
+
+  // 展开态：滚动 / 点击外部自动收起
+  useEffect(() => {
+    if (!expanded) return
+    const onScroll = () => setExpanded(false)
+    const onPointer = (e: PointerEvent) => {
+      if (!dockRef.current?.contains(e.target as Node)) setExpanded(false)
     }
     window.addEventListener('scroll', onScroll, { passive: true })
+    document.addEventListener('pointerdown', onPointer)
     return () => {
       window.removeEventListener('scroll', onScroll)
-      if (raf) cancelAnimationFrame(raf)
+      document.removeEventListener('pointerdown', onPointer)
     }
-  }, [])
-
-  // 切页时重置显示
-  useEffect(() => {
-    setNavHidden(false)
-  }, [location.pathname])
+  }, [expanded])
 
   const handleSignOut = async () => {
     await signOut()
@@ -150,17 +173,29 @@ export default function AppShell() {
         <Outlet />
       </main>
 
-      {/* 底部玻璃导航：设置页隐藏；滚动时自动收起 */}
+      {/* 底部玻璃导航：设置页隐藏；长页面默认折叠为 FAB，点击展开 */}
       {!isSettings && (
         <div
-          className={`liquid-glass fixed left-1/2 z-30 w-fit rounded-full p-1.5 transition-[transform,opacity] duration-300 ease-out ${
-            navHidden
-              ? 'pointer-events-none -translate-x-1/2 translate-y-[160%] opacity-0'
-              : '-translate-x-1/2 translate-y-0 opacity-100'
-          }`}
+          ref={dockRef}
+          className="fixed left-1/2 z-30 -translate-x-1/2"
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
         >
-          <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5 whitespace-nowrap">
+          {collapsed ? (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              aria-label={`展开导航（当前：${activeLabel}）`}
+              title="展开导航"
+              className="liquid-glass btn-press dock-fab flex h-12 w-12 items-center justify-center rounded-full"
+            >
+              <span className="relative flex h-7 w-7 items-center justify-center">
+                <ActiveIcon size={18} />
+                <MenuIcon size={9} className="absolute -bottom-0.5 -right-0.5 opacity-70" />
+              </span>
+            </button>
+          ) : (
+            <div className="liquid-glass dock-expand w-fit rounded-full p-1.5">
+              <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5 whitespace-nowrap">
             {/* 活动指示器：极低不透明度 + 边框，让玻璃折射透出 */}
             <span
               aria-hidden
@@ -196,7 +231,9 @@ export default function AppShell() {
                 </NavLink>
               )
             })}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

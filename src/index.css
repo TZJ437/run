@@ -338,6 +338,26 @@ button { cursor: pointer; }
     0 2px 8px -2px rgba(0, 0, 0, 0.5);
 }
 
+/* 底部导航 · 折叠/展开动画 */
+.dock-fab {
+  animation: dock-fab-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform, opacity;
+}
+@keyframes dock-fab-in {
+  0%   { transform: scale(0.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.dock-expand {
+  animation: dock-expand-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform, opacity;
+  transform-origin: center;
+}
+@keyframes dock-expand-in {
+  0%   { transform: scale(0.35); opacity: 0; }
+  60%  { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* ===== 开屏动画：斐波那契黄金螺旋 ===== */
 .splash-spiral {
   stroke-dasharray: 900;
