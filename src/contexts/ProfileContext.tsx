@@ -63,7 +63,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     profile.nickname.trim() ||
     (user?.user_metadata?.name as string | undefined) ||
     user?.email?.split('@')[0] ||
-    '朋友'
+    (user ? '朋友' : '访客')
 
   return (
     <ProfileContext.Provider value={{ profile, setProfile, displayName }}>

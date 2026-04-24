@@ -15,7 +15,7 @@ const navItems = [
 ]
 
 export default function AppShell() {
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const { profile, displayName } = useProfile()
   const nav = useNavigate()
   const location = useLocation()
@@ -77,14 +77,16 @@ export default function AppShell() {
           </button>
           <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle />
-            <button
-              onClick={handleSignOut}
-              className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
-              aria-label="退出登录"
-              title="退出登录"
-            >
-              <LogOut size={16} />
-            </button>
+            {user && (
+              <button
+                onClick={handleSignOut}
+                className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
+                aria-label="退出登录"
+                title="退出登录"
+              >
+                <LogOut size={16} />
+              </button>
+            )}
           </div>
         </div>
       </header>

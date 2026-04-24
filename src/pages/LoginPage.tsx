@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { Mail, Lock, Sparkles } from 'lucide-react'
+import { Mail, Lock, ArrowLeft } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import ThemeToggle from '@/components/ThemeToggle'
@@ -41,15 +41,22 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
+      <button
+        onClick={() => nav('/')}
+        className="btn-press liquid-glass-subtle absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full"
+        aria-label="返回"
+        title="返回"
+      >
+        <ArrowLeft size={16} />
+      </button>
       <div className="absolute right-4 top-4"><ThemeToggle /></div>
       <GlassCard rounded="3xl" className="w-full max-w-md p-8">
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-400 to-sky-400 shadow-lg">
-            <Sparkles className="text-white" size={26} />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight">LightGlass · 轻玻璃</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {mode === 'signin' ? '登录' : '注册'}
+          </h1>
           <p className="mt-1 text-sm text-fg/60">
-            {mode === 'signin' ? '欢迎回来，让生活慢下来' : '创建你的私享空间'}
+            {mode === 'signin' ? '欢迎回来' : '开启你的空间'}
           </p>
         </div>
 

@@ -2,9 +2,9 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import AppShell from './layouts/AppShell'
 import LoginPage from './pages/LoginPage'
+import SplashScreen from './components/SplashScreen'
 import { useAuth } from './contexts/AuthContext'
 
-// 路由懒加载：各页面按需分包，首屏 JS 变小
 const HomePage = lazy(() => import('./pages/HomePage'))
 const NotesPage = lazy(() => import('./pages/NotesPage'))
 const SolarTermsPage = lazy(() => import('./pages/SolarTermsPage'))
@@ -17,6 +17,7 @@ function Fallback() {
   return <div className="grid h-full place-items-center text-fg/60">加载中…</div>
 }
 
+// 仅对需要账户数据同步的功能加登录守卫
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth()
   if (loading) return <Fallback />
@@ -27,22 +28,17 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 export default function App() {
   return (
     <>
+      <SplashScreen />
       <div className="bg-aurora" aria-hidden>
         <div className="blob blob-3" />
       </div>
       <Suspense fallback={<Fallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <AppShell />
-              </RequireAuth>
-            }
-          >
+          {/* 主框架对所有访客开放；数据相关页单独守卫 */}
+          <Route path="/" element={<AppShell />}>
             <Route index element={<HomePage />} />
-            <Route path="notes" element={<NotesPage />} />
+            <Route path="notes" element={<RequireAuth><NotesPage /></RequireAuth>} />
             <Route path="solar-terms" element={<SolarTermsPage />} />
             <Route path="clock" element={<ClockPage />} />
             <Route path="pomodoro" element={<PomodoroPage />} />

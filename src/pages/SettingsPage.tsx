@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2 } from 'lucide-react'
+import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import { DEFAULT_COLORS, GLASS_VARIANTS, useTheme } from '@/contexts/ThemeContext'
@@ -15,7 +15,7 @@ const AVATAR_COLORS = ['#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#fb7185', '#
 export default function SettingsPage() {
   const { theme, toggleTheme, colors, setColors, resetColors, glassVariant, setGlassVariant } = useTheme()
   const { profile, setProfile } = useProfile()
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const nav = useNavigate()
 
   const onSignOut = async () => {
@@ -29,6 +29,24 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">设置</h1>
         <p className="text-sm text-fg/60">个性化你的 LightGlass</p>
       </div>
+
+      {/* 未登录：登录/注册入口 */}
+      {!user && (
+        <GlassCard rounded="3xl" className="space-y-3 p-5">
+          <div className="flex items-center gap-2">
+            <LogIn size={16} className="text-fg/60" />
+            <h2 className="text-sm font-semibold">登录 / 注册</h2>
+          </div>
+          <p className="text-xs text-fg/60">
+            登录后可使用随手记、多设备同步等完整功能。访客模式所有配置仅保存在本机。
+          </p>
+          <div className="flex gap-2">
+            <GlassButton variant="primary" onClick={() => nav('/login')} className="flex-1">
+              <LogIn size={14} /> 登录或注册
+            </GlassButton>
+          </div>
+        </GlassCard>
+      )}
 
       {/* 个人资料 */}
       <GlassCard rounded="3xl" className="space-y-4 p-5">
@@ -222,13 +240,16 @@ export default function SettingsPage() {
         </div>
       </GlassCard>
 
-      {/* 账户 */}
-      <GlassCard rounded="3xl" className="space-y-4 p-5">
-        <h2 className="text-sm font-semibold">账户</h2>
-        <GlassButton variant="ghost" onClick={onSignOut} className="w-full justify-start">
-          <LogOut size={14} /> 退出登录
-        </GlassButton>
-      </GlassCard>
+      {/* 账户（仅已登录可见） */}
+      {user && (
+        <GlassCard rounded="3xl" className="space-y-4 p-5">
+          <h2 className="text-sm font-semibold">账户</h2>
+          <p className="text-xs text-fg/60">{user.email ?? '已登录'}</p>
+          <GlassButton variant="ghost" onClick={onSignOut} className="w-full justify-start">
+            <LogOut size={14} /> 退出登录
+          </GlassButton>
+        </GlassCard>
+      )}
     </div>
   )
 }
