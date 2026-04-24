@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// 读取签名配置：优先 ~/.gradle/gradle.properties，其次 android/keystore.properties（本地文件，已 gitignore）
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+// 环境变量（CI 用）
+def envStoreFile      = System.getenv("ANDROID_KEYSTORE_PATH")
+def envStorePassword  = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+def envKeyAlias       = System.getenv("ANDROID_KEY_ALIAS")
+def envKeyPassword    = System.getenv("ANDROID_KEY_PASSWORD")
+
+def resolvedStoreFile = envStoreFile ?: keystoreProperties['storeFile']
+
 android {
     namespace = "io.maozi.liquid.lightglass"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +31,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
+    signingConfigs {
+        release {
+            if (resolvedStoreFile) {
+                storeFile file(resolvedStoreFile)
+                storePassword envStorePassword ?: keystoreProperties['storePassword']
+                keyAlias envKeyAlias ?: keystoreProperties['keyAlias']
+                keyPassword envKeyPassword ?: keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // 只有签名配置齐全时才启用 release 签名；否则回退到 debug 签名（开发机构建仍可用）
+            if (resolvedStoreFile) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

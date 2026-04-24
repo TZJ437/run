@@ -206,21 +206,44 @@ openChatWithPrompt('帮我想一个周末的 3 日行程', true) // autoSend = t
 
 ## 📱 Android 打包（Capacitor）
 
+**最简单：直接下载**
+
+- [📥 最新 APK](https://github.com/TZJ437/run/releases/latest/download/LightGlass.apk)
+- [📋 历史版本](https://github.com/TZJ437/run/releases)
+
+**自己构建签名版**
+
+详见 [**RELEASE.md**](./RELEASE.md) —— 包含 keystore 生成、gradle 签名配置、GitHub Actions 自动打包、版本号维护等完整流程。
+
 <details>
-<summary><b>点击展开打包步骤</b></summary>
+<summary><b>快速命令</b></summary>
 
 ```bash
 # 初次：Android Studio 已安装 + 配置 ANDROID_HOME
 npm run build
 npx cap sync android
-npx cap open android     # 在 Android Studio 中打开
+
+# 选 A：调试包
+cd android && ./gradlew assembleDebug
+
+# 选 B：签名发布包（需先配置 keystore，见 RELEASE.md）
+cd android && ./gradlew assembleRelease
 ```
 
-在 Android Studio 里 **Build → Build Bundle(s) / APK(s) → Build APK(s)** 即可产出 `.apk`。
+APK 产物：`android/app/build/outputs/apk/{debug,release}/app-*.apk`
 
 > APK 内部通过 WebView 加载 `file:///android_asset/public/index.html`，使用 `HashRouter` 避免路径问题；底部导航 / AI FAB 均兼容系统手势区。
 
 </details>
+
+### 🔄 应用内更新
+
+设置页包含：
+- **版本号**：从 `package.json` 自动注入（`v{version}`）
+- **检查更新**：一键查询 GitHub Releases 最新版本
+- **下载 APK**：网页版用户直接下载 Android 安装包（自动指向 latest release）
+
+每次推 `v*.*.*` tag 后，GitHub Actions 自动构建签名 APK 并发布 release，用户下次点"检查更新"即可看到。
 
 ---
 
