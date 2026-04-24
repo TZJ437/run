@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react'
 import AppShell from './layouts/AppShell'
 import LoginPage from './pages/LoginPage'
 import SplashScreen from './components/SplashScreen'
+import GlobalWallpaper from './components/GlobalWallpaper'
 import { useAuth } from './contexts/AuthContext'
 
 const HomePage = lazy(() => import('./pages/HomePage'))
@@ -29,6 +30,8 @@ export default function App() {
   return (
     <>
       <SplashScreen />
+      {/* 全局墙纸：存在时作为整个 App 背景，删除自动消失 */}
+      <GlobalWallpaper />
       <div className="bg-aurora" aria-hidden>
         <div className="blob blob-3" />
       </div>

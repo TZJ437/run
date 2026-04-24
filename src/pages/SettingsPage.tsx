@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
-import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock } from 'lucide-react'
+import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock, ArrowLeft } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import Avatar from '@/components/Avatar'
@@ -42,11 +42,26 @@ export default function SettingsPage() {
     }
   }
 
+  const onBack = () => {
+    if (window.history.length > 1) nav(-1)
+    else nav('/', { replace: true })
+  }
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">设置</h1>
-        <p className="text-sm text-fg/60">个性化你的 LightGlass</p>
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
+          aria-label="返回"
+          title="返回"
+        >
+          <ArrowLeft size={16} />
+        </button>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">设置</h1>
+          <p className="text-sm text-fg/60">个性化你的 LightGlass</p>
+        </div>
       </div>
 
       {/* 未登录：顶部醒目登录提示 */}

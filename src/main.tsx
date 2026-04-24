@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProfileProvider } from './contexts/ProfileContext'
 import { PomodoroProvider } from './contexts/PomodoroContext'
+import { WallpaperProvider } from './contexts/WallpaperContext'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -14,9 +15,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ThemeProvider>
         <AuthProvider>
           <ProfileProvider>
-            <PomodoroProvider>
-              <App />
-            </PomodoroProvider>
+            <WallpaperProvider>
+              <PomodoroProvider>
+                <App />
+              </PomodoroProvider>
+            </WallpaperProvider>
           </ProfileProvider>
         </AuthProvider>
       </ThemeProvider>
