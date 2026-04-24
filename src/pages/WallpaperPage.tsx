@@ -58,8 +58,8 @@ export default function WallpaperPage() {
             <ImageIcon size={14} className="text-fg/60" />
             <span className="text-sm font-medium">当前墙纸</span>
           </div>
-          <div className="overflow-hidden rounded-2xl ring-1 ring-white/20 shadow-xl">
-            <img src={src} alt="当前墙纸" className="h-64 w-full object-cover" />
+          <div className="overflow-hidden rounded-2xl ring-1 ring-white/20 shadow-xl bg-black/20 dark:bg-black/40">
+            <img src={src} alt="当前墙纸" className="mx-auto max-h-80 w-auto object-contain" />
           </div>
           <p className="text-xs text-fg/60">
             墙纸已应用到全局背景（模糊 + 柔光）。你可以切换到任何页面查看。

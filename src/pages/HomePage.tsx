@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { StickyNote, CalendarDays, Clock, Timer, ArrowUpRight } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import GlassCard from '@/components/GlassCard'
-import { useAuth } from '@/contexts/AuthContext'
+import { useProfile } from '@/contexts/ProfileContext'
 import { getCurrentSolarTerm, getNextSolarTerm, daysUntil, formatDateCN } from '@/lib/solarTerms'
 
 const features = [
@@ -22,7 +22,7 @@ function useNow(intervalMs = 1000) {
 }
 
 export default function HomePage() {
-  const { user } = useAuth()
+  const { displayName } = useProfile()
   const now = useNow(1000)
   const greeting = useMemo(() => {
     const h = now.getHours()
@@ -36,7 +36,7 @@ export default function HomePage() {
   const current = useMemo(() => getCurrentSolarTerm(now), [now])
   const next = useMemo(() => getNextSolarTerm(now), [now])
   const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  const name = user?.user_metadata?.name ?? (user?.email?.split('@')[0] ?? '朋友')
+  const name = displayName
 
   return (
     <div className="space-y-6">

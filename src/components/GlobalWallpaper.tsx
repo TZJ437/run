@@ -1,17 +1,26 @@
+import { useEffect } from 'react'
 import { useWallpaper } from '@/contexts/WallpaperContext'
 
 /**
  * 全局墙纸背景：fixed 铺满视口作为整个 App 的底层背景
  * - 模糊 + 轻微放大，配合陀螺仪微动
  * - 底部渐暗增加层次
- * - 墙纸存在时完全覆盖 aurora；删除后自动移除
+ * - 墙纸存在时在 body 上加 .has-wallpaper，让 aurora 让位
  */
 export default function GlobalWallpaper() {
   const { src, tilt } = useWallpaper()
+
+  // 同步 body class，让 CSS 决定 aurora 是否显示
+  useEffect(() => {
+    if (src) document.body.classList.add('has-wallpaper')
+    else document.body.classList.remove('has-wallpaper')
+    return () => document.body.classList.remove('has-wallpaper')
+  }, [src])
+
   if (!src) return null
 
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10" aria-hidden>
+    <div className="wallpaper-layer pointer-events-none fixed inset-0" aria-hidden>
       <img
         src={src}
         alt=""

@@ -83,16 +83,49 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
     }
   }, [gyroState])
 
-  // 陀螺仪监听
+  // 陀螺仪监听：同时尝试 deviceorientation / deviceorientationabsolute / devicemotion
+  // Android WebView 下只有 devicemotion 稳定，所以三个都挂
   useEffect(() => {
     if (gyroState !== 'on') return
-    const handler = (e: DeviceOrientationEvent) => {
-      const gx = Math.max(-10, Math.min(10, (e.gamma ?? 0) / 4.5))
-      const gy = Math.max(-10, Math.min(10, ((e.beta ?? 0) - 40) / 5))
+
+    let lastUpdate = 0
+    const THROTTLE_MS = 32 // ~30fps
+
+    const applyTilt = (beta: number | null, gamma: number | null) => {
+      const now = Date.now()
+      if (now - lastUpdate < THROTTLE_MS) return
+      lastUpdate = now
+      const gx = Math.max(-10, Math.min(10, (gamma ?? 0) / 4.5))
+      const gy = Math.max(-10, Math.min(10, ((beta ?? 0) - 40) / 5))
       setTilt({ x: gx, y: gy })
     }
-    window.addEventListener('deviceorientation', handler)
-    return () => window.removeEventListener('deviceorientation', handler)
+
+    const onOrientation = (e: DeviceOrientationEvent) => {
+      if (e.beta == null && e.gamma == null) return
+      applyTilt(e.beta, e.gamma)
+    }
+
+    const onMotion = (e: DeviceMotionEvent) => {
+      // 若 deviceorientation 已经提供数据则跳过（不互相干扰）
+      const rot = e.rotationRate
+      if (!rot) return
+      // 用加速度方向近似作为倾斜角
+      const acc = e.accelerationIncludingGravity
+      if (!acc) return
+      // 将 X/Y 重力分量（-9.8..9.8）映射为 beta/gamma 伪值
+      const pseudoGamma = Math.atan2(acc.x ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
+      const pseudoBeta = Math.atan2(acc.y ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
+      applyTilt(pseudoBeta, pseudoGamma)
+    }
+
+    window.addEventListener('deviceorientation', onOrientation)
+    window.addEventListener('deviceorientationabsolute', onOrientation as EventListener)
+    window.addEventListener('devicemotion', onMotion)
+    return () => {
+      window.removeEventListener('deviceorientation', onOrientation)
+      window.removeEventListener('deviceorientationabsolute', onOrientation as EventListener)
+      window.removeEventListener('devicemotion', onMotion)
+    }
   }, [gyroState])
 
   const uploadWallpaper = useCallback(async (file: File) => {
