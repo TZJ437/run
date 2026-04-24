@@ -33,6 +33,8 @@ export default function AppShell() {
   const indicatorBoxRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
+  // 滚动时隐藏底部导航：向下滚隐藏，向上滚显示
+  const [navHidden, setNavHidden] = useState(false)
 
   const activeIndex = navItems.findIndex((it) => it.match(location.pathname))
   // 设置页视为"子页面"：隐藏底部导航，改为返回按钮由页面自己渲染
@@ -59,6 +61,33 @@ export default function AppShell() {
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [activeIndex])
+
+  // 监听窗口滚动：向下滚隐藏、向上滚显示、顶部自动显示
+  useEffect(() => {
+    let lastY = window.scrollY
+    let raf = 0
+    const onScroll = () => {
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        const y = window.scrollY
+        if (y < 80) setNavHidden(false)
+        else if (y > lastY + 6) setNavHidden(true)
+        else if (y < lastY - 6) setNavHidden(false)
+        lastY = y
+        raf = 0
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [])
+
+  // 切页时重置显示
+  useEffect(() => {
+    setNavHidden(false)
+  }, [location.pathname])
 
   const handleSignOut = async () => {
     await signOut()
@@ -121,10 +150,14 @@ export default function AppShell() {
         <Outlet />
       </main>
 
-      {/* 底部玻璃导航：设置页隐藏 */}
+      {/* 底部玻璃导航：设置页隐藏；滚动时自动收起 */}
       {!isSettings && (
         <div
-          className="liquid-glass fixed left-1/2 z-30 w-fit -translate-x-1/2 rounded-full p-1.5"
+          className={`liquid-glass fixed left-1/2 z-30 w-fit rounded-full p-1.5 transition-[transform,opacity] duration-300 ease-out ${
+            navHidden
+              ? 'pointer-events-none -translate-x-1/2 translate-y-[160%] opacity-0'
+              : '-translate-x-1/2 translate-y-0 opacity-100'
+          }`}
           style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
         >
           <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5 whitespace-nowrap">
