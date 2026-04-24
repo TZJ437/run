@@ -1,5 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { Motion } from '@capacitor/motion'
+import type { PluginListenerHandle } from '@capacitor/core'
 
 const STORAGE_KEY = 'lightglass:wallpaper'
 const GYRO_KEY = 'lightglass:wallpaper:gyro'
@@ -83,15 +86,14 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
     }
   }, [gyroState])
 
-  // 陀螺仪监听：同时尝试 deviceorientation / deviceorientationabsolute / devicemotion
-  // Android WebView 下只有 devicemotion 稳定，所以三个都挂
+  // 陀螺仪监听：原生走 @capacitor/motion，Web 走三种浏览器事件
   useEffect(() => {
     if (gyroState !== 'on') return
 
     let lastUpdate = 0
     const THROTTLE_MS = 32 // ~30fps
 
-    const applyTilt = (beta: number | null, gamma: number | null) => {
+    const applyTilt = (beta: number | null | undefined, gamma: number | null | undefined) => {
       const now = Date.now()
       if (now - lastUpdate < THROTTLE_MS) return
       lastUpdate = now
@@ -100,24 +102,52 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
       setTilt({ x: gx, y: gy })
     }
 
+    // --- Native: Capacitor Motion ---
+    if (Capacitor.isNativePlatform()) {
+      let handleOri: PluginListenerHandle | undefined
+      let handleAcc: PluginListenerHandle | undefined
+      let cancelled = false
+      ;(async () => {
+        try {
+          handleOri = await Motion.addListener('orientation', (ev) => {
+            applyTilt(ev.beta, ev.gamma)
+          })
+          // 兜底：若 orientation 事件不推送，则用加速度推算
+          handleAcc = await Motion.addListener('accel', (ev) => {
+            const acc = ev.accelerationIncludingGravity
+            if (!acc) return
+            const pseudoGamma = Math.atan2(acc.x ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
+            const pseudoBeta = Math.atan2(acc.y ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
+            // 仅当 orientation 近 0.5 秒无更新时才使用
+            if (Date.now() - lastUpdate > 500) applyTilt(pseudoBeta, pseudoGamma)
+          })
+        } catch (err) {
+          console.warn('[wallpaper] Motion listener failed', err)
+        }
+        if (cancelled) {
+          handleOri?.remove()
+          handleAcc?.remove()
+        }
+      })()
+      return () => {
+        cancelled = true
+        handleOri?.remove()
+        handleAcc?.remove()
+      }
+    }
+
+    // --- Web: DOM events ---
     const onOrientation = (e: DeviceOrientationEvent) => {
       if (e.beta == null && e.gamma == null) return
       applyTilt(e.beta, e.gamma)
     }
-
     const onMotion = (e: DeviceMotionEvent) => {
-      // 若 deviceorientation 已经提供数据则跳过（不互相干扰）
-      const rot = e.rotationRate
-      if (!rot) return
-      // 用加速度方向近似作为倾斜角
       const acc = e.accelerationIncludingGravity
       if (!acc) return
-      // 将 X/Y 重力分量（-9.8..9.8）映射为 beta/gamma 伪值
       const pseudoGamma = Math.atan2(acc.x ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
       const pseudoBeta = Math.atan2(acc.y ?? 0, acc.z ?? 9.8) * (180 / Math.PI)
-      applyTilt(pseudoBeta, pseudoGamma)
+      if (Date.now() - lastUpdate > 500) applyTilt(pseudoBeta, pseudoGamma)
     }
-
     window.addEventListener('deviceorientation', onOrientation)
     window.addEventListener('deviceorientationabsolute', onOrientation as EventListener)
     window.addEventListener('devicemotion', onMotion)
@@ -144,6 +174,11 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const enableGyro = useCallback(async () => {
+    // 原生平台：直接开启，权限由系统处理
+    if (Capacitor.isNativePlatform()) {
+      setGyroState('on')
+      return
+    }
     const Ctor = (window as unknown as { DeviceOrientationEvent?: DeviceOrientationEventStatic })
       .DeviceOrientationEvent
     if (!Ctor) {

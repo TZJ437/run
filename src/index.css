@@ -61,6 +61,12 @@ body {
   z-index: -1;
 }
 
+/* 墙纸预览：背景模糊层（同一张图模糊放大） */
+.wp-preview-bg {
+  filter: blur(28px) saturate(1.35) brightness(0.9);
+  transform: scale(1.25);
+}
+
 /* 存在墙纸时隐藏 aurora，避免叠加 */
 body.has-wallpaper .bg-aurora {
   display: none;

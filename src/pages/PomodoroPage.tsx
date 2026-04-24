@@ -86,14 +86,14 @@ export default function PomodoroPage() {
       {/* 设置面板 - 支持返回键关闭 */}
       {showSettings && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/30 backdrop-blur-sm pb-[calc(env(safe-area-inset-bottom)+5.5rem)] sm:items-center sm:pb-0"
           onClick={(e) => {
             if (e.target === e.currentTarget) closeSettings()
           }}
         >
           <GlassCard
             rounded="3xl"
-            className="w-full max-w-md space-y-4 rounded-t-3xl p-5"
+            className="mx-3 w-full max-w-md space-y-4 rounded-3xl p-5"
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold">番茄钟设置</h2>
