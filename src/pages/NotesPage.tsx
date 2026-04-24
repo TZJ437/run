@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Pin, PinOff } from 'lucide-react'
+import { Plus, Trash2, Pin, PinOff, Sparkles, X as XIcon } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import { useAuth } from '@/contexts/AuthContext'
 import { loadData, saveData } from '@/lib/storage'
+import { openChatWithPrompt } from '@/lib/deepseek'
 
 interface Note {
   id: string
@@ -15,11 +16,35 @@ interface Note {
 
 const KEY = 'notes'
 
+const AI_ACTIONS: { key: string; label: string; build: (text: string) => string }[] = [
+  {
+    key: 'polish',
+    label: '润色',
+    build: (t) => `请润色下面这段文字，让表达更自然流畅、保持原意，直接返回润色后的版本：\n\n${t}`,
+  },
+  {
+    key: 'translate',
+    label: '翻译',
+    build: (t) => `请把下面这段中文翻译成英文，只返回译文：\n\n${t}`,
+  },
+  {
+    key: 'summarize',
+    label: '总结',
+    build: (t) => `请用一两句话概括下面这段文字的要点：\n\n${t}`,
+  },
+  {
+    key: 'expand',
+    label: '展开',
+    build: (t) => `请基于下面的要点展开成一段条理清晰的短文：\n\n${t}`,
+  },
+]
+
 export default function NotesPage() {
   const { user } = useAuth()
   const [notes, setNotes] = useState<Note[]>([])
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
+  const [aiMenuFor, setAiMenuFor] = useState<string | null>(null)
 
   useEffect(() => {
     loadData<Note[]>(user?.id ?? null, KEY, []).then(data => {
@@ -93,9 +118,46 @@ export default function NotesPage() {
           {sorted.map(n => (
             <GlassCard key={n.id} rounded="xl" className="group p-4">
               <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{n.content}</p>
+              {aiMenuFor === n.id && (
+                <div className="mt-3 flex flex-wrap items-center gap-1.5 rounded-xl bg-accent/10 p-2 text-xs">
+                  <Sparkles size={12} className="text-accent" />
+                  <span className="text-fg/70">AI：</span>
+                  {AI_ACTIONS.map((a) => (
+                    <button
+                      key={a.key}
+                      onClick={() => {
+                        openChatWithPrompt(a.build(n.content), true)
+                        setAiMenuFor(null)
+                      }}
+                      className="btn-press liquid-glass-subtle rounded-full px-2.5 py-1 hover:text-accent"
+                    >
+                      {a.label}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setAiMenuFor(null)}
+                    aria-label="关闭"
+                    className="btn-press ml-auto rounded-full p-1 hover:bg-white/30 dark:hover:bg-white/10"
+                  >
+                    <XIcon size={12} />
+                  </button>
+                </div>
+              )}
               <div className="mt-3 flex items-center justify-between text-xs text-fg/40">
                 <span>{new Date(n.updatedAt).toLocaleString('zh-CN', { hour12: false })}</span>
-                <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+                  <button
+                    onClick={() =>
+                      setAiMenuFor((cur) => (cur === n.id ? null : n.id))
+                    }
+                    className={`rounded-full p-1.5 hover:bg-accent/15 ${
+                      aiMenuFor === n.id ? 'text-accent' : ''
+                    }`}
+                    aria-label="AI 处理"
+                    title="AI 处理"
+                  >
+                    <Sparkles size={14} />
+                  </button>
                   <button
                     onClick={() => togglePin(n.id)}
                     className="rounded-full p-1.5 hover:bg-white/40 dark:hover:bg-white/10"

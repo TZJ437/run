@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Play, Pause, RotateCcw, Coffee, Brain, Settings2, Bell, BellOff } from 'lucide-react'
+import { Play, Pause, RotateCcw, Coffee, Brain, Settings2, Bell, BellOff, Sparkles } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import { usePomodoro } from '@/contexts/PomodoroContext'
+import { openChatWithPrompt } from '@/lib/deepseek'
 
 const HISTORY_FLAG = 'pomodoro-settings-open'
 
@@ -232,6 +233,30 @@ export default function PomodoroPage() {
           </p>
         </GlassCard>
       </div>
+
+      {/* AI 建议 */}
+      <GlassCard rounded="2xl" className="flex items-center justify-between gap-3 p-4">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-sm font-medium">
+            <Sparkles size={14} className="text-accent" /> AI 小建议
+          </p>
+          <p className="mt-0.5 text-xs text-fg/60">
+            根据今日数据给你一段简短的专注建议或鼓励
+          </p>
+        </div>
+        <GlassButton
+          size="sm"
+          variant="primary"
+          onClick={() => {
+            const prompt = stats.completedFocus > 0
+              ? `我今天完成了 ${stats.completedFocus} 个番茄钟，共专注了 ${stats.totalFocusMinutes} 分钟。请用 2-3 句话给我一段短而有力的鼓励或接下来的专注建议。`
+              : `我今天还一个番茄钟没完成，感觉很难专注。请用 2-3 句话给我一个具体、容易开始的小建议。`
+            openChatWithPrompt(prompt, true)
+          }}
+        >
+          <Sparkles size={14} /> 问一问
+        </GlassButton>
+      </GlassCard>
     </div>
   )
 }
