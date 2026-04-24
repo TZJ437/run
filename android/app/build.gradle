@@ -39,6 +39,10 @@ android {
                 storePassword envStorePassword ?: keystoreProperties['storePassword']
                 keyAlias envKeyAlias ?: keystoreProperties['keyAlias']
                 keyPassword envKeyPassword ?: keystoreProperties['keyPassword']
+                // 同时启用 v1/v2/v3 签名，兼容老设备并让 keytool 也能读取
+                v1SigningEnabled true
+                v2SigningEnabled true
+                enableV3Signing true
             }
         }
     }

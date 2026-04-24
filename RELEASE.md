@@ -11,24 +11,28 @@
 
 ### 1.1 在本机生成 keystore
 
-需要装了 JDK，`keytool` 命令自带。
-在项目根目录（`e:\test\LightGlass\android\`）下执行：
+需要装了 JDK，`keytool` 命令自带。在 **`android/app/`** 目录下执行（`storeFile` 是相对该目录解析的）：
 
 ```powershell
-cd e:\test\LightGlass\android
+cd e:\test\LightGlass\android\app
 keytool -genkeypair -v `
   -keystore lightglass.jks `
   -alias lightglass `
   -keyalg RSA -keysize 2048 -validity 36500
 ```
 
+> 如果 `keytool` 报错或 JVM 配置异常，直接用绝对路径：
+> `& "C:\Program Files\Java\jdk-22\bin\keytool.exe" -genkeypair ...`
+
 按提示：
 - 输入 keystore 密码（至少 6 位，记牢！）
 - 输入姓名 / 组织 / 城市 / 省 / 国家代码（可随意填，国家代码用 `CN`）
-- 回车确认
-- **两次密码：建议 keystore 密码和 key 密码设成一样**，省心
+- 最后问「是否正确?」输入 **`y`** 确认
+- **两次密码：建议 keystore 密码和 key 密码设成一样**（第二次提示 key 密码时直接回车即可）
 
-产物：`android/lightglass.jks`（已在 `.gitignore` 中，不会被提交）
+产物：`android/app/lightglass.jks`（已在 `.gitignore` 中，不会被提交）
+
+> 💡 如果你不小心生成在了别的目录，`Move-Item` 挪到 `android/app/` 下即可。
 
 > ⚠️ **这个文件 + 密码丢了就永远无法更新旧用户的 App**（Android 强制同签名升级）。建议：
 > - 用 1Password / Bitwarden / 备忘录保存密码
