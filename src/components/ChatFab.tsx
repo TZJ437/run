@@ -24,6 +24,11 @@ import type { ChatMessage } from '@/lib/deepseek'
 
 const HISTORY_KEY = 'lightglass:chat:history'
 const MAX_HISTORY = 50
+/**
+ * 发请求时实际带给 API 的上下文消息数（不含 system）。
+ * 太多会指数级增加 token 消耗——12 条 = 约 6 个来回，足够保留近期话题，又不至于太贵。
+ */
+const CONTEXT_WINDOW = 12
 
 interface QuickPrompt {
   label: string
@@ -166,10 +171,11 @@ export default function ChatFab() {
     abortRef.current = ac
 
     try {
-      // 发出时拼接最新历史（排除末尾占位）
+      // 发出时只带最近 CONTEXT_WINDOW 条历史，节省 token
+      const recent = messages.slice(-CONTEXT_WINDOW)
       const history: ChatMessage[] = [
         { role: 'system', content: SYSTEM_PROMPT },
-        ...messages,
+        ...recent,
         userMsg,
       ]
       await chatCompletionStream(history, {

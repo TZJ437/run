@@ -4,7 +4,68 @@
  */
 
 const KEY_STORAGE = 'lightglass:deepseek-key'
+const MODEL_STORAGE = 'lightglass:deepseek-model'
+const MAX_TOKENS_STORAGE = 'lightglass:deepseek-max-tokens'
 const ENDPOINT = 'https://api.deepseek.com/chat/completions'
+
+/**
+ * 默认模型：deepseek-chat（V3，便宜很多）。
+ * deepseek-reasoner 是 R1 推理模型，速度慢且贵，仅在用户明确选择时使用。
+ */
+export const DEFAULT_MODEL = 'deepseek-chat'
+export const DEFAULT_MAX_TOKENS = 800
+
+/** 推荐模型选项（用户可在设置页选；也可手动输入其它名字） */
+export const MODEL_PRESETS: Array<{ id: string; label: string; hint: string }> = [
+  {
+    id: 'deepseek-chat',
+    label: 'deepseek-chat',
+    hint: 'V3 通用模型，便宜快速，日常对话推荐',
+  },
+  {
+    id: 'deepseek-reasoner',
+    label: 'deepseek-reasoner',
+    hint: 'R1 深度推理，慢且贵，仅在复杂问题时用',
+  },
+]
+
+export function getModel(): string {
+  try {
+    return localStorage.getItem(MODEL_STORAGE) || DEFAULT_MODEL
+  } catch {
+    return DEFAULT_MODEL
+  }
+}
+
+export function setModel(model: string) {
+  try {
+    const v = (model || '').trim()
+    if (v) localStorage.setItem(MODEL_STORAGE, v)
+    else localStorage.removeItem(MODEL_STORAGE)
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getMaxTokens(): number {
+  try {
+    const raw = localStorage.getItem(MAX_TOKENS_STORAGE)
+    const n = raw ? parseInt(raw, 10) : NaN
+    if (!Number.isFinite(n) || n < 64) return DEFAULT_MAX_TOKENS
+    return Math.min(n, 4096)
+  } catch {
+    return DEFAULT_MAX_TOKENS
+  }
+}
+
+export function setMaxTokens(n: number) {
+  try {
+    if (!Number.isFinite(n) || n <= 0) localStorage.removeItem(MAX_TOKENS_STORAGE)
+    else localStorage.setItem(MAX_TOKENS_STORAGE, String(Math.round(n)))
+  } catch {
+    /* ignore */
+  }
+}
 
 export class MissingApiKeyError extends Error {
   constructor() {
@@ -40,8 +101,9 @@ export interface ChatMessage {
 }
 
 export interface ChatOptions {
-  model?: 'deepseek-chat' | 'deepseek-reasoner'
+  model?: string
   temperature?: number
+  maxTokens?: number
   signal?: AbortSignal
 }
 
@@ -55,9 +117,10 @@ export async function chatCompletion(messages: ChatMessage[], opts: ChatOptions 
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: opts.model ?? 'deepseek-chat',
+      model: opts.model ?? getModel(),
       messages,
       temperature: opts.temperature ?? 0.7,
+      max_tokens: opts.maxTokens ?? getMaxTokens(),
       stream: false,
     }),
     signal: opts.signal,
@@ -73,7 +136,7 @@ export async function chatCompletion(messages: ChatMessage[], opts: ChatOptions 
 }
 
 export const SYSTEM_PROMPT =
-  '你是 LightGlass 的内置助手。请用简洁、友好的中文回答用户的日常问题，回答要有条理但不啰嗦。可适度使用 Markdown（加粗/列表/代码块）让内容更清晰。'
+  '你是 LightGlass 的内置助手。请用简洁、友好的中文回答用户的问题，回答要有条理但要尽量精炼，避免冗长重复。优先用要点 / 列表呈现关键信息；只在必要时使用代码块。如果一句话能说清楚，就别写两段。'
 
 export interface StreamOptions extends ChatOptions {
   onToken?: (chunk: string) => void
@@ -97,9 +160,10 @@ export async function chatCompletionStream(
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: opts.model ?? 'deepseek-chat',
+      model: opts.model ?? getModel(),
       messages,
       temperature: opts.temperature ?? 0.7,
+      max_tokens: opts.maxTokens ?? getMaxTokens(),
       stream: true,
     }),
     signal: opts.signal,

@@ -30,7 +30,16 @@ import Avatar from '@/components/Avatar'
 import { DEFAULT_COLORS, GLASS_VARIANTS, useTheme } from '@/contexts/ThemeContext'
 import { useProfile } from '@/contexts/ProfileContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { getApiKey, setApiKey } from '@/lib/deepseek'
+import {
+  getApiKey,
+  setApiKey,
+  getModel,
+  setModel,
+  getMaxTokens,
+  setMaxTokens,
+  MODEL_PRESETS,
+  DEFAULT_MAX_TOKENS,
+} from '@/lib/deepseek'
 import {
   APP_VERSION,
   LATEST_APK_URL,
@@ -56,6 +65,8 @@ export default function SettingsPage() {
   const [apiKeyDraft, setApiKeyDraft] = useState(() => getApiKey())
   const [showKey, setShowKey] = useState(false)
   const [keySaved, setKeySaved] = useState(false)
+  const [modelDraft, setModelDraft] = useState(() => getModel())
+  const [maxTokensDraft, setMaxTokensDraft] = useState(() => getMaxTokens())
 
   const [checking, setChecking] = useState(false)
   const [checkResult, setCheckResult] = useState<UpdateCheckResult | null>(null)
@@ -398,6 +409,65 @@ export default function SettingsPage() {
         <p className="text-xs text-fg/50">
           获取 key：前往 <span className="underline">platform.deepseek.com</span> → API keys
         </p>
+
+        {/* 模型选择 */}
+        <div className="mt-2 space-y-2 border-t border-white/15 pt-3 dark:border-white/10">
+          <label className="text-xs text-fg/60">模型</label>
+          <div className="flex flex-wrap gap-2">
+            {MODEL_PRESETS.map((m) => {
+              const active = modelDraft === m.id
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    setModelDraft(m.id)
+                    setModel(m.id)
+                  }}
+                  className={`btn-press rounded-full px-3 py-1.5 text-xs transition ${
+                    active
+                      ? 'bg-accent text-white shadow-sm'
+                      : 'liquid-glass-subtle text-fg hover:text-accent'
+                  }`}
+                  title={m.hint}
+                >
+                  {m.label}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[11px] text-fg/50">
+            {MODEL_PRESETS.find((m) => m.id === modelDraft)?.hint ??
+              '自定义模型，需是 DeepSeek API 支持的名称'}
+          </p>
+        </div>
+
+        {/* 最大输出长度 */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-fg/60">
+            <span>单次最长输出</span>
+            <span className="font-mono text-fg">{maxTokensDraft} tokens</span>
+          </div>
+          <input
+            type="range"
+            min={128}
+            max={2048}
+            step={64}
+            value={maxTokensDraft}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10)
+              setMaxTokensDraft(v)
+              setMaxTokens(v)
+            }}
+            aria-label="最大输出 token 数"
+            title="最大输出 token 数"
+            className="w-full accent-accent"
+          />
+          <p className="text-[11px] text-fg/50">
+            越小越省钱、回答越精简。默认 {DEFAULT_MAX_TOKENS}，日常够用；写长文可调高到 1500+。
+            历史上下文也会自动只保留最近 12 条，避免每次发送越来越贵。
+          </p>
+        </div>
       </GlassCard>
 
       {/* Android 下载（非原生壳 + Android 系统才显示，iOS/桌面也显示一个较低调的版本） */}
