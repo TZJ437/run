@@ -1,5 +1,14 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon } from 'lucide-react'
+import {
+  Home,
+  StickyNote,
+  CalendarDays,
+  Clock,
+  Timer,
+  LogOut,
+  Image as ImageIcon,
+  Settings as SettingsIcon,
+} from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
 import Avatar from '@/components/Avatar'
@@ -15,22 +24,30 @@ const navItems = [
   { to: '/wallpaper', label: '墙纸', icon: ImageIcon, match: (p: string) => p.startsWith('/wallpaper') },
 ]
 
+// 定义类型避免 any
+interface LiquidGlassInstance {
+  destroy: () => void
+  markChanged: (el?: HTMLElement) => void
+}
+
 export default function AppShell() {
   const { user, signOut } = useAuth()
   const { displayName } = useProfile()
   const nav = useNavigate()
   const location = useLocation()
 
-  // 滑动 pill 指示器：监听当前激活项位置
-  const containerRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const navGlassRef = useRef<HTMLDivElement>(null)
+  const indicatorBoxRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
+  const liquidRef = useRef<LiquidGlassInstance | null>(null)
 
-  const activeIndex = navItems.findIndex(it => it.match(location.pathname))
+  const activeIndex = navItems.findIndex((it) => it.match(location.pathname))
 
   useLayoutEffect(() => {
     const el = itemRefs.current[activeIndex]
-    const wrap = containerRef.current
+    const wrap = indicatorBoxRef.current
     if (!el || !wrap) return
     const er = el.getBoundingClientRect()
     const wr = wrap.getBoundingClientRect()
@@ -40,15 +57,81 @@ export default function AppShell() {
   useEffect(() => {
     const onResize = () => {
       const el = itemRefs.current[activeIndex]
-      const wrap = containerRef.current
+      const wrap = indicatorBoxRef.current
       if (!el || !wrap) return
       const er = el.getBoundingClientRect()
       const wr = wrap.getBoundingClientRect()
       setIndicator({ left: er.left - wr.left, width: er.width, ready: true })
+      liquidRef.current?.markChanged()
     }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [activeIndex])
+
+  // 初始化 ybouane/liquidglass，应用到底部导航
+  useEffect(() => {
+    let mounted = true
+    const init = async () => {
+      try {
+        const root = rootRef.current
+        const glass = navGlassRef.current
+        if (!root || !glass) return
+        const mod = await import('@ybouane/liquidglass')
+        if (!mounted) return
+        const instance = (await mod.LiquidGlass.init({
+          root,
+          glassElements: [glass],
+          defaults: {
+            blurAmount: 0.15,
+            refraction: 0.75,
+            chromAberration: 0.05,
+            edgeHighlight: 0.1,
+            fresnel: 1,
+            cornerRadius: 28,
+            zRadius: 18,
+            shadowOpacity: 0.25,
+            shadowSpread: 8,
+          },
+        })) as unknown as LiquidGlassInstance
+        if (!mounted) {
+          instance.destroy()
+          return
+        }
+        liquidRef.current = instance
+
+        // 窗口滚动时重画（节流到 rAF）
+        let raf = 0
+        const onScroll = () => {
+          if (raf) return
+          raf = requestAnimationFrame(() => {
+            liquidRef.current?.markChanged()
+            raf = 0
+          })
+        }
+        window.addEventListener('scroll', onScroll, { passive: true })
+        // 通过 ref 暴露清理
+        ;(liquidRef as { _cleanup?: () => void })._cleanup = () => {
+          window.removeEventListener('scroll', onScroll)
+          if (raf) cancelAnimationFrame(raf)
+        }
+      } catch (e) {
+        console.warn('LiquidGlass init failed, falling back to CSS glass', e)
+      }
+    }
+    init()
+    return () => {
+      mounted = false
+      const clean = (liquidRef as { _cleanup?: () => void })._cleanup
+      if (clean) clean()
+      liquidRef.current?.destroy()
+      liquidRef.current = null
+    }
+  }, [])
+
+  // 路由变化时强制重画一次
+  useEffect(() => {
+    liquidRef.current?.markChanged()
+  }, [location.pathname])
 
   const handleSignOut = async () => {
     await signOut()
@@ -56,7 +139,12 @@ export default function AppShell() {
   }
 
   return (
-    <div className="flex h-full min-h-screen flex-col">
+    <div ref={rootRef} className="relative flex min-h-screen flex-col">
+      {/* 动态极光背景：作为 root 直接子元素，供底部玻璃导航折射 */}
+      <div className="bg-aurora pointer-events-none absolute inset-0 -z-10" aria-hidden>
+        <div className="blob blob-3" />
+      </div>
+
       {/* 顶部栏 */}
       <header
         className="sticky top-0 z-30 px-4"
@@ -73,6 +161,14 @@ export default function AppShell() {
           </button>
           <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle />
+            <button
+              onClick={() => nav('/settings')}
+              className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
+              aria-label="设置"
+              title="设置"
+            >
+              <SettingsIcon size={16} />
+            </button>
             {user && (
               <button
                 onClick={handleSignOut}
@@ -92,19 +188,16 @@ export default function AppShell() {
         <Outlet />
       </main>
 
-      {/* 底部 Dock 导航：滑动 pill 指示器 */}
-      <nav
-        className="fixed inset-x-0 bottom-0 z-30 mb-4 flex justify-center px-3"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      {/* 底部玻璃导航：glass 元素是 root 的直接子元素 */}
+      <div
+        ref={navGlassRef}
+        className="liquid-glass fixed left-1/2 z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1.5 shadow-2xl"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
       >
-        <div
-          ref={containerRef}
-          className="liquid-glass relative flex items-center gap-0.5 rounded-full p-1.5 shadow-2xl"
-        >
-          {/* 滑动指示器 */}
+        <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5">
           <span
             aria-hidden
-            className={`absolute top-1.5 bottom-1.5 rounded-full bg-accent/90 shadow-md shadow-accent/30 ${
+            className={`absolute top-0 bottom-0 rounded-full bg-accent/90 shadow-md shadow-accent/30 ${
               indicator.ready ? 'opacity-100' : 'opacity-0'
             }`}
             style={{
@@ -122,7 +215,9 @@ export default function AppShell() {
                 key={item.to}
                 to={item.to}
                 end={item.end}
-                ref={el => { itemRefs.current[i] = el }}
+                ref={(el) => {
+                  itemRefs.current[i] = el
+                }}
                 className={({ isActive }) =>
                   `btn-press relative z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors duration-300 sm:px-4 ${
                     isActive ? 'text-white' : 'text-fg/70 hover:text-fg'
@@ -135,7 +230,7 @@ export default function AppShell() {
             )
           })}
         </div>
-      </nav>
+      </div>
     </div>
   )
 }
