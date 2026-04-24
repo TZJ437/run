@@ -13,6 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ThemeToggle from '@/components/ThemeToggle'
 import Avatar from '@/components/Avatar'
+import ChatFab from '@/components/ChatFab'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProfile } from '@/contexts/ProfileContext'
 
@@ -173,6 +174,9 @@ export default function AppShell() {
         </nav>,
         document.body,
       )}
+
+      {/* AI 对话悬浮按钮（隐藏于设置页，避免覆盖返回按钮） */}
+      {!hideBottomNav && <ChatFab />}
     </>
   )
 }

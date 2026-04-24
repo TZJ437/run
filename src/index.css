@@ -61,10 +61,69 @@ body {
   z-index: -1;
 }
 
-/* 墙纸预览：背景模糊层（同一张图模糊放大） */
+.wallpaper-img {
+  filter: blur(36px) saturate(1.4) brightness(0.92);
+  transform: scale(1.2);
+}
+
+.wallpaper-top-glow {
+  background: radial-gradient(ellipse 90% 65% at 50% 18%, rgba(255,255,255,0.18), transparent 70%);
+  mix-blend-mode: screen;
+}
+
+.wallpaper-bottom-shade {
+  background: linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.35) 100%);
+}
+
+/* 墙纸预览：圆角 + 自适应比例 */
 .wp-preview-bg {
   filter: blur(28px) saturate(1.35) brightness(0.9);
   transform: scale(1.25);
+}
+
+/* ========== ChatFab 悬浮按钮 & 聊天面板 ========== */
+.chat-fab {
+  /* 位于底部导航右侧：导航高约 64 + safe-area，FAB 贴在导航上方 */
+  right: 1rem;
+  bottom: calc(env(safe-area-inset-bottom) + 5rem);
+  transition: transform 180ms cubic-bezier(.34,1.56,.64,1), box-shadow 200ms ease;
+}
+.chat-fab:hover {
+  transform: scale(1.06);
+}
+.chat-fab:active {
+  transform: scale(0.94);
+}
+
+/* 遮罩渐入 */
+.chat-overlay {
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  transition: background-color 240ms ease, backdrop-filter 240ms ease;
+}
+.chat-overlay-open {
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
+}
+
+/* 面板：scale + translateY 从右下角弹出 */
+.chat-panel {
+  transform: scale(0.2) translateY(40%);
+  transform-origin: bottom right;
+  opacity: 0;
+  transition:
+    transform 280ms cubic-bezier(.34,1.56,.64,1),
+    opacity 220ms ease;
+  will-change: transform, opacity;
+}
+.chat-panel-open {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+@media (min-width: 640px) {
+  .chat-panel {
+    transform-origin: bottom right;
+  }
 }
 
 /* 存在墙纸时隐藏 aurora，避免叠加 */

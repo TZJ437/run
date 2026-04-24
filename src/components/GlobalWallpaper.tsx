@@ -3,14 +3,13 @@ import { useWallpaper } from '@/contexts/WallpaperContext'
 
 /**
  * 全局墙纸背景：fixed 铺满视口作为整个 App 的底层背景
- * - 模糊 + 轻微放大，配合陀螺仪微动
- * - 底部渐暗增加层次
+ * - 模糊 + 放大遮挡边缘
+ * - 上下柔光 / 渐暗增加层次
  * - 墙纸存在时在 body 上加 .has-wallpaper，让 aurora 让位
  */
 export default function GlobalWallpaper() {
-  const { src, tilt } = useWallpaper()
+  const { src } = useWallpaper()
 
-  // 同步 body class，让 CSS 决定 aurora 是否显示
   useEffect(() => {
     if (src) document.body.classList.add('has-wallpaper')
     else document.body.classList.remove('has-wallpaper')
@@ -21,33 +20,9 @@ export default function GlobalWallpaper() {
 
   return (
     <div className="wallpaper-layer pointer-events-none fixed inset-0" aria-hidden>
-      <img
-        src={src}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover will-change-transform"
-        style={{
-          filter: 'blur(36px) saturate(1.4) brightness(0.92)',
-          // 微动幅度加大到 ±40px，在 scale(1.3) 的墙纸上清晰可见
-          transform: `scale(1.3) translate(${tilt.x * 4}px, ${tilt.y * 4}px)`,
-          transition: 'transform 220ms ease-out',
-        }}
-      />
-      {/* 顶部柔光 */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 90% 65% at 50% 18%, rgba(255,255,255,0.18), transparent 70%)',
-          mixBlendMode: 'screen',
-        }}
-      />
-      {/* 底部渐暗 */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.35) 100%)',
-        }}
-      />
+      <img src={src} alt="" className="wallpaper-img absolute inset-0 h-full w-full object-cover" />
+      <div className="wallpaper-top-glow absolute inset-0" />
+      <div className="wallpaper-bottom-shade absolute inset-0" />
     </div>
   )
 }
