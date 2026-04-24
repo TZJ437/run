@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon, Settings as SettingsIcon } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import ThemeToggle from '@/components/ThemeToggle'
 import Avatar from '@/components/Avatar'
 import { useAuth } from '@/contexts/AuthContext'
@@ -130,6 +131,7 @@ export default function AppShell() {
   }
 
   return (
+    <>
     <div ref={rootRef} className="relative flex min-h-screen flex-col">
       {/* 动态极光背景：作为 root 直接子元素，供底部玻璃导航折射 */}
       <div className="bg-aurora pointer-events-none absolute inset-0 -z-10" aria-hidden>
@@ -179,10 +181,14 @@ export default function AppShell() {
         <Outlet />
       </main>
 
-      {/* 底部玻璃导航：glass 元素是 root 的直接子元素 */}
+    </div>
+
+    {/* 底部玻璃导航：Portal 到 body，彻底脱离 rootRef 的 transform/filter 影响，
+        确保无论主内容多高，始终 fixed 在 viewport 底部 */}
+    {createPortal(
       <div
         ref={navGlassRef}
-        className="liquid-glass fixed left-1/2 z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1.5 shadow-2xl"
+        className="liquid-glass fixed left-1/2 z-50 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1.5 shadow-2xl"
         style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
       >
         <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5">
@@ -221,7 +227,9 @@ export default function AppShell() {
             )
           })}
         </div>
-      </div>
-    </div>
+      </div>,
+      document.body,
+    )}
+    </>
   )
 }
