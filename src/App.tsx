@@ -29,8 +29,7 @@ export default function App() {
   return (
     <>
       <SplashScreen />
-      {/* 全局极光背景（登录页等非 AppShell 页面用） */}
-      <div className="bg-aurora pointer-events-none fixed inset-0 -z-10" aria-hidden>
+      <div className="bg-aurora" aria-hidden>
         <div className="blob blob-3" />
       </div>
       <Suspense fallback={<Fallback />}>

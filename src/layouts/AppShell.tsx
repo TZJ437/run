@@ -1,15 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import {
-  Home,
-  StickyNote,
-  CalendarDays,
-  Clock,
-  Timer,
-  LogOut,
-  Image as ImageIcon,
-  Settings as SettingsIcon,
-  Menu as MenuIcon,
-} from 'lucide-react'
+import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon, Settings as SettingsIcon } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
 import Avatar from '@/components/Avatar'
@@ -25,38 +15,35 @@ const navItems = [
   { to: '/wallpaper', label: '墙纸', icon: ImageIcon, match: (p: string) => p.startsWith('/wallpaper') },
 ]
 
+// 定义类型避免 any
+interface LiquidGlassInstance {
+  destroy: () => void
+  markChanged: (el?: HTMLElement) => void
+}
+
 export default function AppShell() {
   const { user, signOut } = useAuth()
   const { displayName } = useProfile()
   const nav = useNavigate()
   const location = useLocation()
 
+  const rootRef = useRef<HTMLDivElement>(null)
+  const navGlassRef = useRef<HTMLDivElement>(null)
   const indicatorBoxRef = useRef<HTMLDivElement>(null)
-  const dockRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
-
-  // 长页面自动折叠成 FAB：当页面可滚动时默认折叠，点击展开
-  const [isLongPage, setIsLongPage] = useState(false)
-  const [expanded, setExpanded] = useState(false)
+  const liquidRef = useRef<LiquidGlassInstance | null>(null)
 
   const activeIndex = navItems.findIndex((it) => it.match(location.pathname))
-  const safeActiveIndex = activeIndex >= 0 ? activeIndex : 0
-  const ActiveIcon = navItems[safeActiveIndex].icon
-  const activeLabel = navItems[safeActiveIndex].label
-  // 设置页视为"子页面"：隐藏底部导航，改为返回按钮由页面自己渲染
-  const isSettings = location.pathname === '/settings'
-  const collapsed = isLongPage && !expanded
 
   useLayoutEffect(() => {
-    if (collapsed) return
     const el = itemRefs.current[activeIndex]
     const wrap = indicatorBoxRef.current
     if (!el || !wrap) return
     const er = el.getBoundingClientRect()
     const wr = wrap.getBoundingClientRect()
     setIndicator({ left: er.left - wr.left, width: er.width, ready: true })
-  }, [activeIndex, location.pathname, collapsed])
+  }, [activeIndex, location.pathname])
 
   useEffect(() => {
     const onResize = () => {
@@ -66,51 +53,76 @@ export default function AppShell() {
       const er = el.getBoundingClientRect()
       const wr = wrap.getBoundingClientRect()
       setIndicator({ left: er.left - wr.left, width: er.width, ready: true })
+      liquidRef.current?.markChanged()
     }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [activeIndex])
 
-  // 检测当前页面是否"长"（内容超出视口即判定）
+  // 初始化 ybouane/liquidglass，应用到底部导航
   useEffect(() => {
-    if (isSettings) {
-      setIsLongPage(false)
-      return
-    }
-    const check = () => {
-      const doc = document.documentElement
-      const long = doc.scrollHeight > window.innerHeight + 24
-      setIsLongPage(long)
-    }
-    check()
-    const ro = new ResizeObserver(check)
-    ro.observe(document.body)
-    window.addEventListener('resize', check)
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', check)
-    }
-  }, [isSettings, location.pathname])
+    let mounted = true
+    const init = async () => {
+      try {
+        const root = rootRef.current
+        const glass = navGlassRef.current
+        if (!root || !glass) return
+        const mod = await import('@ybouane/liquidglass')
+        if (!mounted) return
+        const instance = (await mod.LiquidGlass.init({
+          root,
+          glassElements: [glass],
+          defaults: {
+            blurAmount: 0.15,
+            refraction: 0.75,
+            chromAberration: 0.05,
+            edgeHighlight: 0.1,
+            fresnel: 1,
+            cornerRadius: 28,
+            zRadius: 18,
+            shadowOpacity: 0.25,
+            shadowSpread: 8,
+          },
+        })) as unknown as LiquidGlassInstance
+        if (!mounted) {
+          instance.destroy()
+          return
+        }
+        liquidRef.current = instance
 
-  // 路由切换后自动收起
+        // 窗口滚动时重画（节流到 rAF）
+        let raf = 0
+        const onScroll = () => {
+          if (raf) return
+          raf = requestAnimationFrame(() => {
+            liquidRef.current?.markChanged()
+            raf = 0
+          })
+        }
+        window.addEventListener('scroll', onScroll, { passive: true })
+        // 通过 ref 暴露清理
+        ;(liquidRef as { _cleanup?: () => void })._cleanup = () => {
+          window.removeEventListener('scroll', onScroll)
+          if (raf) cancelAnimationFrame(raf)
+        }
+      } catch (e) {
+        console.warn('LiquidGlass init failed, falling back to CSS glass', e)
+      }
+    }
+    init()
+    return () => {
+      mounted = false
+      const clean = (liquidRef as { _cleanup?: () => void })._cleanup
+      if (clean) clean()
+      liquidRef.current?.destroy()
+      liquidRef.current = null
+    }
+  }, [])
+
+  // 路由变化时强制重画一次
   useEffect(() => {
-    setExpanded(false)
+    liquidRef.current?.markChanged()
   }, [location.pathname])
-
-  // 展开态：滚动 / 点击外部自动收起
-  useEffect(() => {
-    if (!expanded) return
-    const onScroll = () => setExpanded(false)
-    const onPointer = (e: PointerEvent) => {
-      if (!dockRef.current?.contains(e.target as Node)) setExpanded(false)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    document.addEventListener('pointerdown', onPointer)
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      document.removeEventListener('pointerdown', onPointer)
-    }
-  }, [expanded])
 
   const handleSignOut = async () => {
     await signOut()
@@ -118,13 +130,13 @@ export default function AppShell() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col">
-      {/* 动态极光背景 */}
+    <div ref={rootRef} className="relative flex min-h-screen flex-col">
+      {/* 动态极光背景：作为 root 直接子元素，供底部玻璃导航折射 */}
       <div className="bg-aurora pointer-events-none absolute inset-0 -z-10" aria-hidden>
         <div className="blob blob-3" />
       </div>
 
-      {/* 顶部栏（设置页也保留，方便看头像） */}
+      {/* 顶部栏 */}
       <header
         className="sticky top-0 z-30 px-4"
         style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}
@@ -140,16 +152,14 @@ export default function AppShell() {
           </button>
           <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle />
-            {!isSettings && (
-              <button
-                onClick={() => nav('/settings')}
-                className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
-                aria-label="设置"
-                title="设置"
-              >
-                <SettingsIcon size={16} />
-              </button>
-            )}
+            <button
+              onClick={() => nav('/settings')}
+              className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
+              aria-label="设置"
+              title="设置"
+            >
+              <SettingsIcon size={16} />
+            </button>
             {user && (
               <button
                 onClick={handleSignOut}
@@ -164,78 +174,54 @@ export default function AppShell() {
         </div>
       </header>
 
-      {/* 主内容区：非设置页给底部导航预留空间 */}
-      <main
-        className={`mx-auto w-full max-w-6xl flex-1 px-3 py-4 sm:p-4 ${
-          isSettings ? '' : 'pb-28 md:pb-24'
-        }`}
-      >
+      {/* 主内容区 */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-3 py-4 pb-28 sm:p-4 md:pb-24">
         <Outlet />
       </main>
 
-      {/* 底部玻璃导航：设置页隐藏；长页面默认折叠为 FAB，点击展开 */}
-      {!isSettings && (
-        <div
-          ref={dockRef}
-          className="fixed left-1/2 z-30 -translate-x-1/2"
-          style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
-        >
-          {collapsed ? (
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              aria-label={`展开导航（当前：${activeLabel}）`}
-              title="展开导航"
-              className="liquid-glass btn-press dock-fab flex h-12 w-12 items-center justify-center rounded-full"
-            >
-              <span className="relative flex h-7 w-7 items-center justify-center">
-                <ActiveIcon size={18} />
-                <MenuIcon size={9} className="absolute -bottom-0.5 -right-0.5 opacity-70" />
-              </span>
-            </button>
-          ) : (
-            <div className="liquid-glass dock-expand w-fit rounded-full p-1.5">
-              <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5 whitespace-nowrap">
-            {/* 活动指示器：极低不透明度 + 边框，让玻璃折射透出 */}
-            <span
-              aria-hidden
-              className={`nav-indicator absolute top-0 bottom-0 rounded-full ${
-                indicator.ready ? 'opacity-100' : 'opacity-0'
-              }`}
-              style={{
-                left: indicator.left,
-                width: indicator.width,
-                transition: indicator.ready
-                  ? 'left 400ms cubic-bezier(0.34, 1.56, 0.64, 1), width 400ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms ease'
-                  : 'none',
-              }}
-            />
-            {navItems.map((item, i) => {
-              const Icon = item.icon
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  ref={(el) => {
-                    itemRefs.current[i] = el
-                  }}
-                  className={({ isActive }) =>
-                    `btn-press relative z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors duration-300 sm:px-4 ${
-                      isActive ? 'text-fg font-semibold' : 'text-fg/60 hover:text-fg'
-                    }`
-                  }
-                >
-                  <Icon size={16} />
-                  <span className="hidden sm:inline">{item.label}</span>
-                </NavLink>
-              )
-            })}
-              </div>
-            </div>
-          )}
+      {/* 底部玻璃导航：glass 元素是 root 的直接子元素 */}
+      <div
+        ref={navGlassRef}
+        className="liquid-glass fixed left-1/2 z-30 flex -translate-x-1/2 items-center gap-0.5 rounded-full p-1.5 shadow-2xl"
+        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 1rem)' }}
+      >
+        <div ref={indicatorBoxRef} className="relative flex items-center gap-0.5">
+          <span
+            aria-hidden
+            className={`absolute top-0 bottom-0 rounded-full bg-accent/90 shadow-md shadow-accent/30 ${
+              indicator.ready ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              left: indicator.left,
+              width: indicator.width,
+              transition: indicator.ready
+                ? 'left 400ms cubic-bezier(0.34, 1.56, 0.64, 1), width 400ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 200ms ease'
+                : 'none',
+            }}
+          />
+          {navItems.map((item, i) => {
+            const Icon = item.icon
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                ref={(el) => {
+                  itemRefs.current[i] = el
+                }}
+                className={({ isActive }) =>
+                  `btn-press relative z-10 flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors duration-300 sm:px-4 ${
+                    isActive ? 'text-white' : 'text-fg/70 hover:text-fg'
+                  }`
+                }
+              >
+                <Icon size={16} />
+                <span className="hidden sm:inline">{item.label}</span>
+              </NavLink>
+            )
+          })}
         </div>
-      )}
+      </div>
     </div>
   )
 }

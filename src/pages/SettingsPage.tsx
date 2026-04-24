@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
-import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock, ArrowLeft } from 'lucide-react'
+import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import Avatar from '@/components/Avatar'
@@ -44,19 +44,9 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-5">
-      {/* 顶部：返回按钮 + 标题 */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => (window.history.length > 1 ? nav(-1) : nav('/'))}
-          className="btn-press liquid-glass-subtle flex h-10 w-10 items-center justify-center rounded-full"
-          aria-label="返回"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">设置</h1>
-          <p className="text-sm text-fg/60">个性化你的 LightGlass</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">设置</h1>
+        <p className="text-sm text-fg/60">个性化你的 LightGlass</p>
       </div>
 
       {/* 未登录：顶部醒目登录提示 */}
