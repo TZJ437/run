@@ -1,18 +1,52 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { MessageCircle, X, Send, Loader2, Trash2 } from 'lucide-react'
 import { chatCompletion, SYSTEM_PROMPT } from '@/lib/deepseek'
 import type { ChatMessage } from '@/lib/deepseek'
 
 /**
- * 悬浮聊天 FAB：底部导航右侧小圆按钮 → 点开为聊天面板
- * - 关闭态：56px 圆形玻璃按钮
- * - 打开态：全屏遮罩 + 底部上滑面板（桌面端居中）
- * - 使用 CSS transform scale 实现开关动画
+ * 悬浮聊天 FAB：
+ * - 可拖拽，抬手时自动贴向最近的屏幕边缘（左/右）
+ * - 拖动位移 < 6px 视为点击，打开聊天面板
+ * - 点开后平滑从 FAB 位置放大为面板；关闭反向缩回
+ * - 面板完全打开时 FAB 隐藏，避免重叠
  */
+
+const FAB_SIZE = 48
+const MARGIN = 12
+const DRAG_THRESHOLD = 6
+const POS_KEY = 'lightglass:chatfab:pos'
+
+type Pos = { x: number; y: number; side: 'left' | 'right' }
+
+function clamp(v: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, v))
+}
+
+function loadPos(): Pos | null {
+  try {
+    const raw = localStorage.getItem(POS_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw)
+    if (typeof p?.x === 'number' && typeof p?.y === 'number') return p
+  } catch {
+    /* ignore */
+  }
+  return null
+}
+
+function savePos(p: Pos) {
+  try {
+    localStorage.setItem(POS_KEY, JSON.stringify(p))
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function ChatFab() {
   const [open, setOpen] = useState(false)
-  const [rendered, setRendered] = useState(false) // 控制是否挂载面板（动画结束后卸载）
+  const [rendered, setRendered] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -20,27 +54,131 @@ export default function ChatFab() {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
+  // --- 可拖拽位置 ---
+  const [pos, setPos] = useState<Pos | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const dragStartRef = useRef<{
+    pointerX: number
+    pointerY: number
+    startX: number
+    startY: number
+    moved: boolean
+  } | null>(null)
+
+  // 初始位置（屏幕右下，避开底部导航 ~80px）
+  useLayoutEffect(() => {
+    const saved = loadPos()
+    const W = window.innerWidth
+    const H = window.innerHeight
+    if (saved) {
+      // 根据最新视口重新 clamp
+      const x = saved.side === 'left' ? MARGIN : W - FAB_SIZE - MARGIN
+      const y = clamp(saved.y, MARGIN + 56, H - FAB_SIZE - 80)
+      setPos({ x, y, side: saved.side })
+    } else {
+      setPos({
+        x: W - FAB_SIZE - MARGIN,
+        y: H - FAB_SIZE - 80,
+        side: 'right',
+      })
+    }
+  }, [])
+
+  // 视口变化时重新贴边 / 限高
+  useEffect(() => {
+    const onResize = () => {
+      setPos((p) => {
+        if (!p) return p
+        const W = window.innerWidth
+        const H = window.innerHeight
+        return {
+          side: p.side,
+          x: p.side === 'left' ? MARGIN : W - FAB_SIZE - MARGIN,
+          y: clamp(p.y, MARGIN + 56, H - FAB_SIZE - 80),
+        }
+      })
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!pos) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragStartRef.current = {
+      pointerX: e.clientX,
+      pointerY: e.clientY,
+      startX: pos.x,
+      startY: pos.y,
+      moved: false,
+    }
+    setDragging(true)
+  }
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const s = dragStartRef.current
+    if (!s || !pos) return
+    const dx = e.clientX - s.pointerX
+    const dy = e.clientY - s.pointerY
+    if (!s.moved && Math.hypot(dx, dy) > DRAG_THRESHOLD) s.moved = true
+    if (!s.moved) return
+    const W = window.innerWidth
+    const H = window.innerHeight
+    setPos({
+      x: clamp(s.startX + dx, MARGIN, W - FAB_SIZE - MARGIN),
+      y: clamp(s.startY + dy, MARGIN + 56, H - FAB_SIZE - 80),
+      side: pos.side,
+    })
+  }
+
+  const endDrag = (e: ReactPointerEvent<HTMLButtonElement>) => {
+    const s = dragStartRef.current
+    if (!s) return
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {
+      /* ignore */
+    }
+    dragStartRef.current = null
+    setDragging(false)
+
+    if (!s.moved) {
+      // 作为点击处理
+      setOpen(true)
+      return
+    }
+
+    // 贴边
+    setPos((p) => {
+      if (!p) return p
+      const W = window.innerWidth
+      const centerX = p.x + FAB_SIZE / 2
+      const side: 'left' | 'right' = centerX < W / 2 ? 'left' : 'right'
+      const snappedX = side === 'left' ? MARGIN : W - FAB_SIZE - MARGIN
+      const next = { x: snappedX, y: p.y, side }
+      savePos(next)
+      return next
+    })
+  }
+
   // 开/关动画生命周期
   useEffect(() => {
     if (open) {
       setRendered(true)
     } else if (rendered) {
-      const t = setTimeout(() => setRendered(false), 260)
+      const t = setTimeout(() => setRendered(false), 280)
       return () => clearTimeout(t)
     }
   }, [open, rendered])
 
-  // 打开时聚焦输入框
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 280)
+    if (open) setTimeout(() => inputRef.current?.focus(), 300)
   }, [open])
 
-  // 消息滚到底
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, loading])
 
-  // 手机返回键关闭聊天
   useEffect(() => {
     if (!open) return
     window.history.pushState({ chatFab: true }, '')
@@ -86,16 +224,41 @@ export default function ChatFab() {
     setMessages([])
   }
 
+  // FAB 本体
+  const fabStyle: CSSProperties | undefined = pos
+    ? {
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
+        width: `${FAB_SIZE}px`,
+        height: `${FAB_SIZE}px`,
+        transition: dragging
+          ? 'none'
+          : 'left 300ms cubic-bezier(.34,1.56,.64,1), top 300ms cubic-bezier(.34,1.56,.64,1), opacity 200ms ease, transform 200ms ease',
+        touchAction: 'none',
+        opacity: open ? 0 : 1,
+        pointerEvents: open ? 'none' : 'auto',
+      }
+    : undefined
+
   const fab = (
     <button
-      onClick={() => setOpen(true)}
-      aria-label="打开 AI 对话"
+      aria-label="打开 AI 对话（可拖拽）"
       title="AI 对话"
-      className="chat-fab liquid-glass btn-press fixed z-[90] flex h-12 w-12 items-center justify-center rounded-full text-fg shadow-lg"
+      className="chat-fab-draggable liquid-glass fixed z-[90] flex items-center justify-center rounded-full text-fg shadow-lg"
+      style={fabStyle}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
     >
       <MessageCircle size={20} />
     </button>
   )
+
+  // 面板（从 FAB 位置放大）
+  const panelOrigin = pos
+    ? `${pos.x + FAB_SIZE / 2}px ${pos.y + FAB_SIZE / 2}px`
+    : 'bottom right'
 
   const panel = rendered ? (
     <div
@@ -110,6 +273,7 @@ export default function ChatFab() {
         className={`chat-panel liquid-glass relative flex h-[82vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl sm:h-[70vh] sm:rounded-3xl ${
           open ? 'chat-panel-open' : ''
         }`}
+        style={{ transformOrigin: panelOrigin }}
       >
         {/* header */}
         <div className="flex items-center justify-between border-b border-white/20 px-4 py-3 dark:border-white/10">
@@ -208,7 +372,7 @@ export default function ChatFab() {
     </div>
   ) : null
 
-  // Portal 挂到 body 避免被路由 transform 影响
+  if (!pos) return null
   return (
     <>
       {createPortal(fab, document.body)}

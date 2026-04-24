@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
-import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock, ArrowLeft } from 'lucide-react'
+import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock, ArrowLeft, Key, MessageCircle, Eye, EyeOff } from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import Avatar from '@/components/Avatar'
 import { DEFAULT_COLORS, GLASS_VARIANTS, useTheme } from '@/contexts/ThemeContext'
 import { useProfile } from '@/contexts/ProfileContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { getApiKey, setApiKey } from '@/lib/deepseek'
 
 const ACCENT_PRESETS = ['#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#fb7185', '#f97316', '#64748b']
 const BG_LIGHT_PRESETS = ['#f5f5f7', '#fff7ed', '#f0f9ff', '#f0fdf4', '#fdf4ff']
@@ -21,6 +22,9 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploadErr, setUploadErr] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [apiKeyDraft, setApiKeyDraft] = useState(() => getApiKey())
+  const [showKey, setShowKey] = useState(false)
+  const [keySaved, setKeySaved] = useState(false)
 
   const locked = !user // 未登录：禁用个性化
   const onSignOut = async () => {
@@ -279,6 +283,72 @@ export default function SettingsPage() {
             </GlassButton>
           </div>
         </div>
+      </GlassCard>
+
+      {/* AI 对话：DeepSeek API Key */}
+      <GlassCard rounded="3xl" className="space-y-3 p-5">
+        <div className="flex items-center gap-2">
+          <MessageCircle size={16} className="text-fg/60" />
+          <h2 className="text-sm font-semibold">AI 对话（DeepSeek）</h2>
+        </div>
+        <p className="text-xs text-fg/60">
+          自定义你自己的 API key，会保存在本机。留空则使用内置默认 key（随应用分发，可能被共享消耗额度，不推荐长期使用）。
+        </p>
+        <label className="text-xs text-fg/60">
+          <span className="inline-flex items-center gap-1">
+            <Key size={12} /> API Key
+          </span>
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type={showKey ? 'text' : 'password'}
+            value={apiKeyDraft}
+            onChange={(e) => {
+              setApiKeyDraft(e.target.value)
+              setKeySaved(false)
+            }}
+            placeholder="sk-..."
+            aria-label="DeepSeek API Key"
+            className="liquid-glass-subtle flex-1 rounded-xl px-3 py-2 font-mono text-xs outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setShowKey((v) => !v)}
+            aria-label={showKey ? '隐藏' : '显示'}
+            title={showKey ? '隐藏 key' : '显示 key'}
+            className="btn-press liquid-glass-subtle flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+          >
+            {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <GlassButton
+            size="sm"
+            variant="primary"
+            onClick={() => {
+              setApiKey(apiKeyDraft)
+              setKeySaved(true)
+              setTimeout(() => setKeySaved(false), 1600)
+            }}
+          >
+            保存
+          </GlassButton>
+          <GlassButton
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              setApiKey('')
+              setApiKeyDraft(getApiKey())
+              setKeySaved(false)
+            }}
+          >
+            恢复默认
+          </GlassButton>
+          {keySaved && <span className="self-center text-xs text-emerald-500">已保存 ✓</span>}
+        </div>
+        <p className="text-xs text-fg/50">
+          获取 key：前往 <span className="underline">platform.deepseek.com</span> → API keys
+        </p>
       </GlassCard>
 
       {/* 账户（仅已登录可见） */}
