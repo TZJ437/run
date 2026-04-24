@@ -1,6 +1,29 @@
 import { useNavigate } from 'react-router-dom'
 import { useRef, useState } from 'react'
-import { LogOut, RotateCcw, Sparkles, Moon, Sun, User2, LogIn, Upload, X, Lock, ArrowLeft, Key, MessageCircle, Eye, EyeOff } from 'lucide-react'
+import {
+  LogOut,
+  RotateCcw,
+  Sparkles,
+  Moon,
+  Sun,
+  User2,
+  LogIn,
+  Upload,
+  X,
+  Lock,
+  ArrowLeft,
+  Key,
+  MessageCircle,
+  Eye,
+  EyeOff,
+  Info,
+  Download,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Github,
+  Heart,
+} from 'lucide-react'
 import GlassCard from '@/components/GlassCard'
 import GlassButton from '@/components/GlassButton'
 import Avatar from '@/components/Avatar'
@@ -8,6 +31,14 @@ import { DEFAULT_COLORS, GLASS_VARIANTS, useTheme } from '@/contexts/ThemeContex
 import { useProfile } from '@/contexts/ProfileContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { getApiKey, setApiKey } from '@/lib/deepseek'
+import {
+  APP_VERSION,
+  LATEST_APK_URL,
+  LATEST_RELEASE_PAGE,
+  checkForUpdate,
+  type UpdateCheckResult,
+} from '@/lib/update'
+import { isNativeApp, platformLabel } from '@/lib/platform'
 
 const ACCENT_PRESETS = ['#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#fb7185', '#f97316', '#64748b']
 const BG_LIGHT_PRESETS = ['#f5f5f7', '#fff7ed', '#f0f9ff', '#f0fdf4', '#fdf4ff']
@@ -25,6 +56,24 @@ export default function SettingsPage() {
   const [apiKeyDraft, setApiKeyDraft] = useState(() => getApiKey())
   const [showKey, setShowKey] = useState(false)
   const [keySaved, setKeySaved] = useState(false)
+
+  const [checking, setChecking] = useState(false)
+  const [checkResult, setCheckResult] = useState<UpdateCheckResult | null>(null)
+  const [checkErr, setCheckErr] = useState<string | null>(null)
+
+  const runCheckUpdate = async () => {
+    setChecking(true)
+    setCheckErr(null)
+    setCheckResult(null)
+    try {
+      const r = await checkForUpdate()
+      setCheckResult(r)
+    } catch (e) {
+      setCheckErr(e instanceof Error ? e.message : '检查失败')
+    } finally {
+      setChecking(false)
+    }
+  }
 
   const locked = !user // 未登录：禁用个性化
   const onSignOut = async () => {
@@ -349,6 +398,143 @@ export default function SettingsPage() {
         <p className="text-xs text-fg/50">
           获取 key：前往 <span className="underline">platform.deepseek.com</span> → API keys
         </p>
+      </GlassCard>
+
+      {/* Android 下载（非原生壳 + Android 系统才显示，iOS/桌面也显示一个较低调的版本） */}
+      {!isNativeApp() && (
+        <GlassCard rounded="3xl" className="space-y-3 p-5">
+          <div className="flex items-center gap-2">
+            <Download size={16} className="text-fg/60" />
+            <h2 className="text-sm font-semibold">安装到手机</h2>
+          </div>
+          <p className="text-xs text-fg/60">
+            想要更顺滑的离线体验？下载 Android 版 APK，或直接把网页"添加到主屏幕"。
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={LATEST_APK_URL}
+              rel="noopener noreferrer"
+              className="no-underline"
+            >
+              <GlassButton variant="primary" size="sm">
+                <Download size={14} /> 下载最新 APK
+              </GlassButton>
+            </a>
+            <a
+              href={LATEST_RELEASE_PAGE}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="no-underline"
+            >
+              <GlassButton variant="ghost" size="sm">
+                <Github size={14} /> 历史版本
+              </GlassButton>
+            </a>
+          </div>
+          <p className="text-[11px] text-fg/40">
+            Android 安装时可能需要"允许未知来源"；iOS 可用 PWA（Safari → 共享 → 添加到主屏幕）
+          </p>
+        </GlassCard>
+      )}
+
+      {/* 检查更新 */}
+      <GlassCard rounded="3xl" className="space-y-3 p-5">
+        <div className="flex items-center gap-2">
+          <RefreshCw size={16} className="text-fg/60" />
+          <h2 className="text-sm font-semibold">检查更新</h2>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs text-fg/60">
+              当前版本 <span className="font-mono">v{APP_VERSION}</span> · {platformLabel()}
+            </p>
+            {checkResult && !checkErr && (
+              checkResult.hasUpdate ? (
+                <p className="mt-1 flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                  <AlertCircle size={12} />
+                  发现新版本 <span className="font-mono">v{checkResult.latest.version}</span>
+                </p>
+              ) : (
+                <p className="mt-1 flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 size={12} />
+                  已是最新版本
+                </p>
+              )
+            )}
+            {checkErr && (
+              <p className="mt-1 flex items-center gap-1 text-xs text-rose-500">
+                <AlertCircle size={12} />
+                {checkErr}
+              </p>
+            )}
+          </div>
+          <GlassButton size="sm" onClick={runCheckUpdate} disabled={checking}>
+            <RefreshCw size={14} className={checking ? 'animate-spin' : ''} />
+            {checking ? '检查中…' : '检查更新'}
+          </GlassButton>
+        </div>
+        {checkResult?.hasUpdate && (
+          <div className="space-y-2 rounded-2xl bg-amber-500/10 p-3">
+            <p className="text-xs font-medium">{checkResult.latest.name || checkResult.latest.tag}</p>
+            {checkResult.latest.notes && (
+              <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-fg/70">
+{checkResult.latest.notes}
+              </pre>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {checkResult.latest.apkUrl && !isNativeApp() && (
+                <a href={checkResult.latest.apkUrl} rel="noopener noreferrer" className="no-underline">
+                  <GlassButton size="sm" variant="primary">
+                    <Download size={12} /> 下载 APK
+                  </GlassButton>
+                </a>
+              )}
+              <a
+                href={checkResult.latest.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="no-underline"
+              >
+                <GlassButton size="sm" variant="ghost">
+                  <Github size={12} /> 查看发布说明
+                </GlassButton>
+              </a>
+            </div>
+          </div>
+        )}
+      </GlassCard>
+
+      {/* 关于 */}
+      <GlassCard rounded="3xl" className="space-y-3 p-5">
+        <div className="flex items-center gap-2">
+          <Info size={16} className="text-fg/60" />
+          <h2 className="text-sm font-semibold">关于 LightGlass</h2>
+        </div>
+        <p className="text-xs leading-relaxed text-fg/70">
+          <strong>LightGlass · 轻玻璃</strong> 是一款以 iOS 26 「液态玻璃」美学打造的极简生活应用，
+          集随手记、二十四节气、光锥时钟、番茄时钟、全局墙纸与内置 AI 助手（DeepSeek）于一身。
+          单一代码库同时支持 Web、PWA 与 Android。
+        </p>
+        <ul className="space-y-1 text-[11px] text-fg/60">
+          <li>· 免费、开源（MIT）</li>
+          <li>· 所有数据默认保存在你本机；登录后可选云同步</li>
+          <li>· 不收集任何个人信息，AI API Key 仅在本地存储</li>
+        </ul>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <a
+            href={LATEST_RELEASE_PAGE.replace('/releases', '')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="no-underline"
+          >
+            <GlassButton size="sm" variant="ghost">
+              <Github size={14} /> 源码
+            </GlassButton>
+          </a>
+          <span className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-3 py-1 text-[11px] text-rose-500">
+            <Heart size={11} /> Made with care
+          </span>
+        </div>
       </GlassCard>
 
       {/* 账户（仅已登录可见） */}

@@ -2,10 +2,22 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import type { ReactNode } from 'react'
 
 const STORAGE_KEY = 'lightglass:wallpaper'
+const OVERLAY_KEY = 'lightglass:wallpaper:overlay'
+const BLUR_KEY = 'lightglass:wallpaper:blur'
+
+/** 默认值：偏柔和，图片可见但不抢眼 */
+export const DEFAULT_OVERLAY = 0.4 // 0..1
+export const DEFAULT_BLUR = 0 // 0..40 px
 
 interface Ctx {
   src: string | null
   uploading: boolean
+  /** 主题蒙层不透明度：0 = 完全看清图，1 = 完全被纯色覆盖 */
+  overlay: number
+  /** 图片模糊半径 (px)：0 不模糊 */
+  blur: number
+  setOverlay: (v: number) => void
+  setBlur: (v: number) => void
   uploadWallpaper: (file: File) => Promise<void>
   clearWallpaper: () => void
 }
@@ -45,6 +57,24 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
     }
   })
   const [uploading, setUploading] = useState(false)
+  const [overlay, setOverlayState] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(OVERLAY_KEY)
+      const n = raw == null ? DEFAULT_OVERLAY : Number(raw)
+      return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : DEFAULT_OVERLAY
+    } catch {
+      return DEFAULT_OVERLAY
+    }
+  })
+  const [blur, setBlurState] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem(BLUR_KEY)
+      const n = raw == null ? DEFAULT_BLUR : Number(raw)
+      return Number.isFinite(n) ? Math.min(40, Math.max(0, n)) : DEFAULT_BLUR
+    } catch {
+      return DEFAULT_BLUR
+    }
+  })
 
   useEffect(() => {
     try {
@@ -54,6 +84,29 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
       /* 配额溢出静默 */
     }
   }, [src])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(OVERLAY_KEY, String(overlay))
+    } catch {
+      /* ignore */
+    }
+  }, [overlay])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(BLUR_KEY, String(blur))
+    } catch {
+      /* ignore */
+    }
+  }, [blur])
+
+  const setOverlay = useCallback((v: number) => {
+    setOverlayState(Math.min(1, Math.max(0, v)))
+  }, [])
+  const setBlur = useCallback((v: number) => {
+    setBlurState(Math.min(40, Math.max(0, v)))
+  }, [])
 
   const uploadWallpaper = useCallback(async (file: File) => {
     setUploading(true)
@@ -70,7 +123,9 @@ export function WallpaperProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <WallpaperContext.Provider value={{ src, uploading, uploadWallpaper, clearWallpaper }}>
+    <WallpaperContext.Provider
+      value={{ src, uploading, overlay, blur, setOverlay, setBlur, uploadWallpaper, clearWallpaper }}
+    >
       {children}
     </WallpaperContext.Provider>
   )

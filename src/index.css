@@ -61,18 +61,13 @@ body {
   z-index: -1;
 }
 
+/* 图片本身的 filter/transform 现在由 JS 控制（用户可调模糊） */
 .wallpaper-img {
-  filter: blur(36px) saturate(1.4) brightness(0.92);
-  transform: scale(1.2);
-}
-
-.wallpaper-top-glow {
-  background: radial-gradient(ellipse 90% 65% at 50% 18%, rgba(255,255,255,0.18), transparent 70%);
-  mix-blend-mode: screen;
+  transition: filter 300ms ease, transform 300ms ease;
 }
 
 .wallpaper-bottom-shade {
-  background: linear-gradient(to bottom, transparent 55%, rgba(0,0,0,0.35) 100%);
+  background: linear-gradient(to bottom, transparent 70%, rgba(0,0,0,0.25) 100%);
 }
 
 /* 墙纸预览：圆角 + 自适应比例 */

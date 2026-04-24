@@ -2,11 +2,18 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
+
+const pkg = JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'))
 
 // GitHub Pages 项目站点部署在 /<repo>/ 路径下，通过 VITE_BASE 环境变量注入
 // 本地开发或部署到根域名时保持为 '/'
 export default defineConfig({
   base: process.env.VITE_BASE || '/',
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_NAME__: JSON.stringify(pkg.name),
+  },
   plugins: [
     react(),
     VitePWA({
