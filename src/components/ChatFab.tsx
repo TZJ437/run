@@ -15,8 +15,13 @@ import type { ChatMessage } from '@/lib/deepseek'
 
 const FAB_SIZE = 48
 const MARGIN = 12
-const DRAG_THRESHOLD = 6
-const POS_KEY = 'lightglass:chatfab:pos'
+/** 顶部预留（可视header高度） */
+const TOP_RESERVE = 72
+/** 底部预留：底部导航栏宽度 + 安全距 ≈ 120px */
+const BOTTOM_RESERVE = 120
+const DRAG_THRESHOLD = 4
+// v2: 旧版本保存的位置可能被导航遮住，换键名让用户回到默认位
+const POS_KEY = 'lightglass:chatfab:pos:v2'
 
 type Pos = { x: number; y: number; side: 'left' | 'right' }
 
@@ -65,20 +70,22 @@ export default function ChatFab() {
     moved: boolean
   } | null>(null)
 
-  // 初始位置（屏幕右下，避开底部导航 ~80px）
+  // 初始位置（屏幕右下，避开底部导航）
   useLayoutEffect(() => {
     const saved = loadPos()
     const W = window.innerWidth
     const H = window.innerHeight
+    const yMin = TOP_RESERVE
+    const yMax = Math.max(yMin + 1, H - FAB_SIZE - BOTTOM_RESERVE)
     if (saved) {
-      // 根据最新视口重新 clamp
       const x = saved.side === 'left' ? MARGIN : W - FAB_SIZE - MARGIN
-      const y = clamp(saved.y, MARGIN + 56, H - FAB_SIZE - 80)
+      const y = clamp(saved.y, yMin, yMax)
       setPos({ x, y, side: saved.side })
     } else {
       setPos({
         x: W - FAB_SIZE - MARGIN,
-        y: H - FAB_SIZE - 80,
+        // 默认位置：屏幕右中偏下，已避开导航
+        y: Math.max(yMin, H - FAB_SIZE - BOTTOM_RESERVE - 40),
         side: 'right',
       })
     }
@@ -91,10 +98,12 @@ export default function ChatFab() {
         if (!p) return p
         const W = window.innerWidth
         const H = window.innerHeight
+        const yMin = TOP_RESERVE
+        const yMax = Math.max(yMin + 1, H - FAB_SIZE - BOTTOM_RESERVE)
         return {
           side: p.side,
           x: p.side === 'left' ? MARGIN : W - FAB_SIZE - MARGIN,
-          y: clamp(p.y, MARGIN + 56, H - FAB_SIZE - 80),
+          y: clamp(p.y, yMin, yMax),
         }
       })
     }
@@ -124,9 +133,11 @@ export default function ChatFab() {
     if (!s.moved) return
     const W = window.innerWidth
     const H = window.innerHeight
+    const yMin = TOP_RESERVE
+    const yMax = Math.max(yMin + 1, H - FAB_SIZE - BOTTOM_RESERVE)
     setPos({
       x: clamp(s.startX + dx, MARGIN, W - FAB_SIZE - MARGIN),
-      y: clamp(s.startY + dy, MARGIN + 56, H - FAB_SIZE - 80),
+      y: clamp(s.startY + dy, yMin, yMax),
       side: pos.side,
     })
   }
@@ -179,18 +190,26 @@ export default function ChatFab() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, loading])
 
+  // 打开时监听 Escape / 硬件返回键（Android WebView 的 backbutton 事件）关闭
+  // 不用 pushState，避免和 React Router 内部历史状态边埌
   useEffect(() => {
     if (!open) return
-    window.history.pushState({ chatFab: true }, '')
-    const onPop = () => setOpen(false)
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    const onBack = (e: Event) => {
+      e.preventDefault()
+      setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    document.addEventListener('backbutton', onBack)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.removeEventListener('backbutton', onBack)
+    }
   }, [open])
 
-  const closeWithBack = () => {
-    if (window.history.state?.chatFab) window.history.back()
-    else setOpen(false)
-  }
+  const closeWithBack = () => setOpen(false)
 
   const send = async () => {
     const text = input.trim()
