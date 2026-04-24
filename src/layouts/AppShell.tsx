@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Home, StickyNote, CalendarDays, Clock, Timer, LogOut, Image as ImageIcon } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import ThemeToggle from '@/components/ThemeToggle'
+import Avatar from '@/components/Avatar'
 import { useAuth } from '@/contexts/AuthContext'
 import { useProfile } from '@/contexts/ProfileContext'
 
@@ -16,7 +17,7 @@ const navItems = [
 
 export default function AppShell() {
   const { user, signOut } = useAuth()
-  const { profile, displayName } = useProfile()
+  const { displayName } = useProfile()
   const nav = useNavigate()
   const location = useLocation()
 
@@ -67,12 +68,7 @@ export default function AppShell() {
             className="btn-press flex min-w-0 items-center gap-2.5 rounded-full pr-2"
             aria-label="打开设置"
           >
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg shadow-md"
-              style={{ background: profile.avatarColor }}
-            >
-              {profile.avatarEmoji}
-            </div>
+            <Avatar size={36} />
             <span className="truncate text-sm font-semibold tracking-wide">{displayName}</span>
           </button>
           <div className="flex shrink-0 items-center gap-2">

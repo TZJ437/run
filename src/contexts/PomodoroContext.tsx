@@ -204,39 +204,48 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const start = useCallback(async () => {
-    const ok = await requestNotifyPermission()
-    setNotifyOn(ok)
+    // 立刻切换到运行态（不等通知权限，避免点击无响应）
     const totalSec =
       pausedRemaining !== null
         ? pausedRemaining
         : phase === 'focus'
           ? settings.focusMin * 60
           : settings.breakMin * 60
+    if (totalSec <= 0) return
     const end = Date.now() + totalSec * 1000
     setEndAt(end)
     setPausedRemaining(null)
     setRunning(true)
 
-    // 调度结束通知 + 常驻状态栏通知
-    const title = phase === 'focus' ? '番茄钟 · 专注' : '番茄钟 · 休息'
-    const endTime = new Date(end)
-    const hh = String(endTime.getHours()).padStart(2, '0')
-    const mm = String(endTime.getMinutes()).padStart(2, '0')
-    void scheduleNotification({
-      id: NOTIF_ID_ONGOING,
-      title,
-      body: `${phase === 'focus' ? '专注中' : '休息中'}，预计 ${hh}:${mm} 结束`,
-      ongoing: true,
-    })
-    void scheduleNotification({
-      id: NOTIF_ID_END,
-      title: phase === 'focus' ? '专注结束' : '休息结束',
-      body:
-        phase === 'focus'
-          ? `完成 ${settings.focusMin} 分钟专注，去喝口水吧 ☕`
-          : `休息结束，开始下一个 ${settings.focusMin} 分钟专注 🍅`,
-      at: endTime,
-    })
+    // 权限和通知异步调度，不阻塞 UI
+    void (async () => {
+      try {
+        const ok = await requestNotifyPermission()
+        setNotifyOn(ok)
+        if (!ok) return
+        const title = phase === 'focus' ? '番茄钟 · 专注' : '番茄钟 · 休息'
+        const endTime = new Date(end)
+        const hh = String(endTime.getHours()).padStart(2, '0')
+        const mm = String(endTime.getMinutes()).padStart(2, '0')
+        await scheduleNotification({
+          id: NOTIF_ID_ONGOING,
+          title,
+          body: `${phase === 'focus' ? '专注中' : '休息中'}，预计 ${hh}:${mm} 结束`,
+          ongoing: true,
+        })
+        await scheduleNotification({
+          id: NOTIF_ID_END,
+          title: phase === 'focus' ? '专注结束' : '休息结束',
+          body:
+            phase === 'focus'
+              ? `完成 ${settings.focusMin} 分钟专注，去喝口水吧 ☕`
+              : `休息结束，开始下一个 ${settings.focusMin} 分钟专注 🍅`,
+          at: endTime,
+        })
+      } catch (e) {
+        console.error('pomodoro notification failed', e)
+      }
+    })()
   }, [pausedRemaining, phase, settings.focusMin, settings.breakMin])
 
   const pause = useCallback(() => {
