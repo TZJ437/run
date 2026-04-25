@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useAuth } from './AuthContext'
+import { loadData, saveData } from '@/lib/storage'
 
 export interface ProfileData {
   nickname: string
@@ -24,10 +25,7 @@ interface Ctx {
 }
 
 const ProfileContext = createContext<Ctx | null>(null)
-
-function storageKey(userId: string | null | undefined) {
-  return `lightglass:profile:${userId ?? 'guest'}`
-}
+const PROFILE_DATA_KEY = 'profile'
 
 // 将图片文件压缩为正方形 base64（最大 256px，减小存储体积）
 function resizeImage(file: File, max = 256): Promise<string> {
@@ -61,28 +59,20 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [profile, setProfileState] = useState<ProfileData>(DEFAULT)
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey(user?.id))
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<ProfileData>
-        setProfileState({ ...DEFAULT, ...parsed })
-        return
-      }
-    } catch {
-      /* ignore */
+    let cancelled = false
+    loadData<Partial<ProfileData>>(user?.id ?? null, PROFILE_DATA_KEY, DEFAULT).then((data) => {
+      if (!cancelled) setProfileState({ ...DEFAULT, ...data })
+    })
+    return () => {
+      cancelled = true
     }
-    setProfileState(DEFAULT)
   }, [user?.id])
 
   const setProfile = useCallback(
     (p: Partial<ProfileData>) => {
       setProfileState((prev) => {
         const next = { ...prev, ...p }
-        try {
-          localStorage.setItem(storageKey(user?.id), JSON.stringify(next))
-        } catch {
-          /* ignore */
-        }
+        void saveData(user?.id ?? null, PROFILE_DATA_KEY, next)
         return next
       })
     },
